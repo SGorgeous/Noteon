@@ -7,11 +7,18 @@ using System.Web.Script.Serialization;
 using System.Windows;
 using System.Windows.Media;
 using System.Windows.Media.Imaging;
+using System.Windows.Interop;
+using System.Windows.Threading;
+using System.Runtime.InteropServices;
 using Microsoft.Web.WebView2.Core;
 using Microsoft.Web.WebView2.Wpf;
 
 public class PanelWindow : Window
 {
+    [DllImport("user32.dll")] private static extern IntPtr GetForegroundWindow();
+    [DllImport("user32.dll")] private static extern IntPtr GetAncestor(IntPtr hWnd, uint flags);
+    private DateTime shownAt = DateTime.MinValue;
+
     private readonly AppHost app;
     private WebView2CompositionControl web;
     private readonly JavaScriptSerializer json = new JavaScriptSerializer { MaxJsonLength = int.MaxValue };
@@ -38,6 +45,22 @@ public class PanelWindow : Window
         web.DefaultBackgroundColor = System.Drawing.Color.Transparent;
         Content = web;
         Loaded += OnLoaded;
+        Deactivated += (s, e) => { if (IsVisible) Hide(); };
+        IsVisibleChanged += (s, e) => { if (IsVisible) shownAt = DateTime.UtcNow; };
+        var hideTimer = new DispatcherTimer();
+        hideTimer.Interval = TimeSpan.FromMilliseconds(450);
+        hideTimer.Tick += (s, e) =>
+        {
+            if (!IsVisible || (DateTime.UtcNow - shownAt).TotalMilliseconds < 700) return;
+            try
+            {
+                var fg = GetForegroundWindow();
+                var root = fg == IntPtr.Zero ? IntPtr.Zero : GetAncestor(fg, 2);
+                if (root != new WindowInteropHelper(this).Handle) Hide();
+            }
+            catch { }
+        };
+        hideTimer.Start();
         Closing += (s, e) =>
         {
             if (!allowClose)
