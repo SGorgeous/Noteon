@@ -15,7 +15,9 @@ const ROOT = path.join(__dirname, '..');
 const SMOKE = process.argv.includes('--smoke') || process.env.NOTEON_SMOKE === '1';
 const DEMO = process.argv.includes('--demo');
 const ASSETS = path.join(ROOT, 'assets');
-const DATA_DIR = path.join(ROOT, 'data');
+const DATA_DIR = app.isPackaged
+  ? path.join(path.dirname(process.execPath), 'data')
+  : path.join(ROOT, 'data');
 
 app.setName('Noteon');
 if (SMOKE || DEMO) {
