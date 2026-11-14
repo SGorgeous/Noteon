@@ -205,8 +205,7 @@ public class AppHost
             Panel = new PanelWindow(this);
             Panel.Closed += (s, e) => { Panel = null; };
         }
-        Panel.Show();
-        Panel.Activate();
+        Panel.ShowPanel();
         return Panel;
     }
 }
@@ -280,7 +279,6 @@ public class CardWindow : Window
         Topmost = card.alwaysOnTop;
 
         rootGrid = new Grid();
-        rootGrid.Background = new SolidColorBrush(System.Windows.Media.Color.FromArgb(235, 18, 22, 30));
         var loading = new Border();
         loading.Background = new SolidColorBrush(System.Windows.Media.Color.FromArgb(245, 18, 22, 30));
         loading.CornerRadius = new CornerRadius(12);

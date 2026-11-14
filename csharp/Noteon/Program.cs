@@ -118,7 +118,8 @@ class Program
         catch { }
 
         var noPanel = Array.IndexOf(cmdArgs, "--nopanel") >= 0 || reqPlugin != null;
-        if (!noPanel) host.OpenPanel();
+        // 不在启动时自动打开控制台：面板和卡片的 WebView2 同时初始化会互相卡住。
+        // 控制台改由托盘手动打开。
 
         if (Convert.ToBoolean(host.Store.Settings.ContainsKey("contextMenu") ? host.Store.Settings["contextMenu"] : false))
         {
@@ -145,7 +146,7 @@ class Program
             tray.Visible = true;
             var menu = new WinForms.ContextMenuStrip();
             var openItem = new WinForms.ToolStripMenuItem("控制台");
-            openItem.Click += (s, e) => { if (host.Panel != null) host.Panel.Show(); else host.OpenPanel(); };
+            openItem.Click += (s, e) => { host.OpenPanel(); };
             var exitItem = new WinForms.ToolStripMenuItem("退出 Noteon");
             exitItem.Click += (s, e) =>
             {
@@ -167,7 +168,7 @@ class Program
             menu.Items.Add(new WinForms.ToolStripSeparator());
             menu.Items.Add(exitItem);
             tray.ContextMenuStrip = menu;
-            tray.DoubleClick += (s, e) => { if (host.Panel != null) host.Panel.Show(); else host.OpenPanel(); };
+            tray.DoubleClick += (s, e) => { host.OpenPanel(); };
         }
         catch { }
 

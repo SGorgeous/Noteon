@@ -17,6 +17,9 @@ public class PanelWindow : Window
 {
     [DllImport("user32.dll")] private static extern IntPtr GetForegroundWindow();
     [DllImport("user32.dll")] private static extern IntPtr GetAncestor(IntPtr hWnd, uint flags);
+    [DllImport("user32.dll")] private static extern int GetWindowLong(IntPtr hWnd, int index);
+    [DllImport("user32.dll")] private static extern int SetWindowLong(IntPtr hWnd, int index, int value);
+    [DllImport("user32.dll")] private static extern bool SetForegroundWindow(IntPtr hWnd);
     private DateTime shownAt = DateTime.MinValue;
 
     private readonly AppHost app;
@@ -45,22 +48,6 @@ public class PanelWindow : Window
         web.DefaultBackgroundColor = System.Drawing.Color.Transparent;
         Content = web;
         Loaded += OnLoaded;
-        Deactivated += (s, e) => { if (IsVisible) Hide(); };
-        IsVisibleChanged += (s, e) => { if (IsVisible) shownAt = DateTime.UtcNow; };
-        var hideTimer = new DispatcherTimer();
-        hideTimer.Interval = TimeSpan.FromMilliseconds(450);
-        hideTimer.Tick += (s, e) =>
-        {
-            if (!IsVisible || (DateTime.UtcNow - shownAt).TotalMilliseconds < 700) return;
-            try
-            {
-                var fg = GetForegroundWindow();
-                var root = fg == IntPtr.Zero ? IntPtr.Zero : GetAncestor(fg, 2);
-                if (root != new WindowInteropHelper(this).Handle) Hide();
-            }
-            catch { }
-        };
-        hideTimer.Start();
         Closing += (s, e) =>
         {
             if (!allowClose)
@@ -90,6 +77,29 @@ public class PanelWindow : Window
         {
             MessageBox.Show(ex.ToString(), "WebView2");
         }
+    }
+
+    private void SetClickThrough(bool on)
+    {
+        try
+        {
+            var hwnd = new WindowInteropHelper(this).Handle;
+            if (hwnd == IntPtr.Zero) return;
+            int ex = GetWindowLong(hwnd, -20);
+            ex = on ? (ex | 0x20) : (ex & ~0x20);
+            SetWindowLong(hwnd, -20, ex);
+        }
+        catch { }
+    }
+
+    public void ShowPanel()
+    {
+        Show();
+        if (WindowState == WindowState.Minimized) WindowState = WindowState.Normal;
+        SetClickThrough(false);
+        Topmost = true;
+        Activate();
+        try { SetForegroundWindow(new WindowInteropHelper(this).Handle); } catch { }
     }
 
     public void ClosePanel()
