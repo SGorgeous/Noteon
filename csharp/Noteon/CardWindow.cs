@@ -328,6 +328,7 @@ public class CardWindow : Window
             if (!initializing && !resizing && !applyingBounds && !isFullscreen) SaveBounds();
         };
         Closed += (s, e) => { if (resizeTimer != null) resizeTimer.Stop(); DisposeWebViews(); app.Remove(this); };
+        Deactivated += (s, e) => { if (isFullscreen) ExitFullscreen(); };
     }
 
     public void StopWebMedia()
