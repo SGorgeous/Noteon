@@ -25,10 +25,13 @@
 
 ## 运行
 
-需要 Windows。仓库里已经放好离线 Electron 运行时（`runtime/electron/`），不用装 Node。
+需要 Windows。**发布页的 [Noteon-win64.zip](https://github.com/SGorgeous/Noteon/releases/latest) 已内置 Electron 运行时**，解压后直接双击 `Noteon.exe`，不用装 Node。
 
-- 双击 **`Noteon.cmd`** —— 带控制台启动，方便看日志
-- 双击 **`Noteon.vbs`** —— 无控制台窗口
+源码仓库为了控制体积没有提交 `runtime/`（约 357MB）：
+
+- 想从源码运行：把 Electron 运行时解压到 `runtime/electron/`（或从 Release 包里复制 `resources` 外的运行时文件），然后双击 `Noteon.cmd`
+- **`Noteon.cmd`** —— 带控制台启动，方便看日志
+- **`Noteon.vbs`** —— 无控制台窗口
 - 开发模式：`dev.cmd`（带 `--enable-logging`）
 
 首次启动会打开控制台，并放一张欢迎便签。之后从托盘图标右键，或控制台里新建卡片。
