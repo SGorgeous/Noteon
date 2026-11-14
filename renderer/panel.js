@@ -275,8 +275,9 @@
     $('#accentHex').textContent = r.accent.toUpperCase();
     $('#bgColor').value = toHex(r.bg);
     $('#bgHex').textContent = toHex(r.bg).toUpperCase();
-    $('#alphaRange').value = Math.round(r.alpha * 100);
-    $('#alphaVal').textContent = Math.round(r.alpha * 100) + '%';
+    const alphaPct = Math.max(10, Math.min(100, Math.round(r.alpha * 100)));
+    $('#alphaRange').value = alphaPct;
+    $('#alphaVal').textContent = alphaPct + '%';
     $('#radiusRange').value = Math.round(r.radius);
     $('#radiusVal').textContent = Math.round(r.radius) + 'px';
     $('#blurRange').value = Math.round(r.blur);
@@ -301,7 +302,7 @@
   function applyPreview() {
     const r = resolvedTheme();
     const el = $('#previewCard');
-    el.style.setProperty('--bg', Theme.withAlpha(r.bg, r.alpha));
+    el.style.setProperty('--bg', Theme.withAlpha(r.bg, Math.max(0.1, r.alpha)));
     el.style.setProperty('--fg', r.fg);
     el.style.setProperty('--muted', r.muted);
     el.style.setProperty('--border', r.border);

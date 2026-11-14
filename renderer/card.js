@@ -211,7 +211,7 @@ if (window.chrome && window.chrome.webview) document.body.classList.add('csharp-
       // 这样低不透明度时文字不会单独悬在桌面背景上。
       const customAlpha = info.theme.customTheme && Number.isFinite(info.theme.customTheme.alpha);
       if (!customAlpha && !Number.isFinite(card.alpha)) theme.alpha = 1;
-      visualAlpha = theme.alpha;
+      visualAlpha = Math.max(0.10, Math.min(1, theme.alpha));
       document.documentElement.style.setProperty('--card-opacity', visualAlpha);
       theme.alpha = 1;
     } else {
@@ -491,7 +491,7 @@ if (window.chrome && window.chrome.webview) document.body.classList.add('csharp-
     const themeItems = Object.entries(window.NoteonTheme.THEMES).map(([id, t]) => ({
       id: 'theme:' + id, label: t.name, type: 'checkbox', checked: currentTheme === id,
     }));
-    const alphaItems = [100, 90, 80, 70, 60, 50, 40, 30, 20, 10, 0].map((v) => ({
+    const alphaItems = [100, 90, 80, 70, 60, 50, 40, 30, 20, 10].map((v) => ({
       id: 'alpha:' + v, label: v + '%', type: 'checkbox', checked: currentAlpha === v,
     }));
     const items = [
