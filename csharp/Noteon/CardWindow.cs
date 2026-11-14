@@ -1404,6 +1404,16 @@ public class CardWindow : Window
         app.Store.Save();
     }
 
+    public void FlushState()
+    {
+        try
+        {
+            if (web != null && web.CoreWebView2 != null)
+                web.CoreWebView2.ExecuteScriptAsync("window.dispatchEvent(new Event('noteon:flush'))");
+        }
+        catch { }
+    }
+
     public void PostTheme()
     {
         var payload = new Dictionary<string, object>();
@@ -1478,6 +1488,7 @@ public class CardWindow : Window
         moving = true;
         StartNativeDrag(2); // HTCAPTION
         moving = false;
+        SnapToTargets();
         SaveBounds();
     }
 
@@ -1541,6 +1552,52 @@ public class CardWindow : Window
             return new Rect(x, y, w, h);
         }
         catch { return null; }
+    }
+
+    private void SnapToTargets()
+    {
+        if (isFullscreen) return;
+        bool enabled = true;
+        try { if (app.Store.Settings.ContainsKey("snap")) enabled = Convert.ToBoolean(app.Store.Settings["snap"]); } catch { }
+        if (!enabled) return;
+        const double threshold = 14;
+        var hwnd = new WindowInteropHelper(this).Handle;
+        var screen = WinForms.Screen.FromHandle(hwnd);
+        var dpi = VisualTreeHelper.GetDpi(this);
+        double sx = Math.Max(0.1, dpi.DpiScaleX);
+        double sy = Math.Max(0.1, dpi.DpiScaleY);
+        var wa = screen.WorkingArea;
+        double sl = wa.Left / sx, st = wa.Top / sy, sr = wa.Right / sx, sb = wa.Bottom / sy;
+
+        var xs = new List<double> { sl, sr - Width };
+        var ys = new List<double> { st, sb - Height };
+        foreach (var w in app.Windows)
+        {
+            if (w == this || w.Card == null || !w.IsVisible) continue;
+            xs.Add(w.Left);
+            xs.Add(w.Left + w.Width);
+            xs.Add(w.Left - Width);
+            xs.Add(w.Left + w.Width - Width);
+            ys.Add(w.Top);
+            ys.Add(w.Top + w.Height);
+            ys.Add(w.Top - Height);
+            ys.Add(w.Top + w.Height - Height);
+        }
+
+        double bestX = double.MaxValue, bestLeft = Left;
+        foreach (var target in xs)
+        {
+            double d = Math.Abs(Left - target);
+            if (d < bestX && d <= threshold) { bestX = d; bestLeft = target; }
+        }
+        double bestY = double.MaxValue, bestTop = Top;
+        foreach (var target in ys)
+        {
+            double d = Math.Abs(Top - target);
+            if (d < bestY && d <= threshold) { bestY = d; bestTop = target; }
+        }
+        if (bestX <= threshold) Left = bestLeft;
+        if (bestY <= threshold) Top = bestTop;
     }
 
     private void SaveBounds()

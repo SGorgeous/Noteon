@@ -16,6 +16,21 @@ class Program
     [DllImport("user32.dll")] static extern bool RegisterHotKey(IntPtr hWnd, int id, uint fsModifiers, uint vk);
     [DllImport("user32.dll")] static extern bool UnregisterHotKey(IntPtr hWnd, int id);
     [STAThread]
+    static void FlushAndExit(AppHost host, Application app)
+    {
+        var windows = new List<CardWindow>(host.Windows);
+        foreach (var w in windows) w.FlushState();
+        // 给 WebView2 的 saveState 消息留出处理时间。
+        var frame = new DispatcherFrame();
+        var timer = new DispatcherTimer();
+        timer.Interval = TimeSpan.FromMilliseconds(260);
+        timer.Tick += (s, e) => { timer.Stop(); frame.Continue = false; };
+        timer.Start();
+        Dispatcher.PushFrame(frame);
+        try { host.Store.Save(); } catch { }
+        app.Shutdown();
+    }
+
     static void Main()
     {
         var baseDir = AppDomain.CurrentDomain.BaseDirectory;
@@ -128,7 +143,7 @@ class Program
             {
                 if (host.Panel != null) host.Panel.ClosePanel();
                 if (tray != null) tray.Visible = false;
-                app.Shutdown();
+                FlushAndExit(host, app);
             };
             menu.Items.Add(openItem);
             var autoItem = new WinForms.ToolStripMenuItem("开机启动");
@@ -149,6 +164,7 @@ class Program
         catch { }
 
         app.Run();
+        try { store.Save(); } catch { }
         launchTimer.Stop();
         try { mutex.ReleaseMutex(); } catch { }
         if (hotkey != null) { try { UnregisterHotKey(hotkey.Handle, 1); hotkey.Dispose(); } catch { } }

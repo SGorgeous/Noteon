@@ -131,6 +131,9 @@
       const ctx = buildContext(root);
       instance = await def.mount(ctx);
       document.body.classList.add('ready');
+      window.addEventListener('noteon:flush', () => {
+        try { if (instance && typeof instance.unmount === 'function') instance.unmount(); } catch (err) { console.error(err); }
+      });
     } catch (err) {
       console.error('[card] 启动失败', err);
       fatal(err.message || String(err));
