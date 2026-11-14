@@ -13,6 +13,7 @@ using Drawing = System.Drawing;
 
 class Program
 {
+    [DllImport("kernel32.dll")] static extern bool FreeConsole();
     [DllImport("user32.dll")] static extern bool RegisterHotKey(IntPtr hWnd, int id, uint fsModifiers, uint vk);
     [DllImport("user32.dll")] static extern bool UnregisterHotKey(IntPtr hWnd, int id);
     static void FlushAndExit(AppHost host, Application app)
@@ -33,6 +34,8 @@ class Program
     [STAThread]
     static void Main()
     {
+        // GUI 程序从终端启动时不要继续挂在父控制台上。
+        try { FreeConsole(); } catch { }
         var baseDir = AppDomain.CurrentDomain.BaseDirectory;
         var cmdArgs = Environment.GetCommandLineArgs();
         string reqPlugin = null;
