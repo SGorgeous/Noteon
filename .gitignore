@@ -4,3 +4,4 @@ node_modules/
 *.log
 data/
 dist/
+tools/rcedit-x64.exe
