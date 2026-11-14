@@ -79,6 +79,7 @@ public class Store
         b.settings["snap"] = true;
         b.settings["hideFromTaskbar"] = true;
         b.settings["contextMenu"] = false;
+        b.settings["autoStart"] = true;
         return b;
     }
 

@@ -467,19 +467,21 @@ if (window.chrome && window.chrome.webview) document.body.classList.add('csharp-
       };
 
       build(menu, items);
-      menu.classList.remove('hidden');
-      menu.style.left = '8px';
-      menu.style.top = '48px';
       const rect = btnMore.getBoundingClientRect();
-      requestAnimationFrame(() => {
-        const margin = 8;
-        const maxLeft = Math.max(margin, window.innerWidth - menu.offsetWidth - margin);
-        menu.style.left = Math.max(margin, Math.min(rect.right - menu.offsetWidth, maxLeft)) + 'px';
-        menu.classList.toggle('left-sub', rect.right > window.innerWidth / 2);
-        let top = rect.bottom + 6;
-        if (top + menu.offsetHeight > window.innerHeight - margin) top = Math.max(margin, rect.top - menu.offsetHeight - 6);
-        menu.style.top = top + 'px';
-      });
+      const margin = 8;
+      // 先隐藏但参与布局，量出真实尺寸后再定位，避免菜单先出现在左上角再跳动。
+      menu.style.visibility = 'hidden';
+      menu.classList.remove('hidden');
+      menu.style.left = '0px';
+      menu.style.top = '0px';
+      const maxLeft = Math.max(margin, window.innerWidth - menu.offsetWidth - margin);
+      const left = Math.max(margin, Math.min(rect.right - menu.offsetWidth, maxLeft));
+      menu.style.left = left + 'px';
+      menu.classList.toggle('left-sub', left + menu.offsetWidth / 2 > window.innerWidth / 2);
+      let top = rect.bottom + 6;
+      if (top + menu.offsetHeight > window.innerHeight - margin) top = Math.max(margin, rect.top - menu.offsetHeight - 6);
+      menu.style.top = top + 'px';
+      menu.style.visibility = '';
       setTimeout(() => document.addEventListener('pointerdown', outside, true), 0);
       document.addEventListener('keydown', esc, true);
     });

@@ -69,6 +69,12 @@ class Program
             try { File.Copy(legacyBoard, targetBoard); } catch { }
         }
         var store = new Store(dataDir);
+        if (!store.Settings.ContainsKey("autoStart"))
+        {
+            try { AutoStart.Set(true); } catch { }
+            store.Settings["autoStart"] = true;
+            store.Save();
+        }
         var host = new AppHost();
         host.Store = store;
         host.WebRoot = webRoot;
@@ -110,7 +116,7 @@ class Program
                 {
                     var id = wParam.ToInt32();
                     if (id == 1) host.ShowAndTile();
-                    else if (id == 2) host.OpenNewCardPanel();
+                    else if (id == 2) host.ShowNewCardWindow();
                     handled = true;
                 }
                 return IntPtr.Zero;
@@ -149,7 +155,7 @@ class Program
             tray.Visible = true;
             var menu = new WinForms.ContextMenuStrip();
             var newItem = new WinForms.ToolStripMenuItem("新建卡片…");
-            newItem.Click += (s, e) => host.OpenNewCardPanel();
+            newItem.Click += (s, e) => host.ShowNewCardWindow();
             menu.Items.Add(newItem);
             var openItem = new WinForms.ToolStripMenuItem("控制台");
             openItem.Click += (s, e) => { host.OpenPanel(); };
@@ -163,7 +169,7 @@ class Program
             menu.Items.Add(openItem);
             var autoItem = new WinForms.ToolStripMenuItem("开机启动");
             autoItem.Checked = AutoStart.IsEnabled();
-            autoItem.Click += (s, e) => { autoItem.Checked = !autoItem.Checked; AutoStart.Set(autoItem.Checked); };
+            autoItem.Click += (s, e) => { autoItem.Checked = !autoItem.Checked; AutoStart.Set(autoItem.Checked); host.Store.Settings["autoStart"] = autoItem.Checked; host.Store.Save(); };
             menu.Items.Add(autoItem);
             var allDesk = new WinForms.ToolStripMenuItem("全部桌面模式");
             allDesk.Click += (s, e) => host.SetAllDesktop(true);

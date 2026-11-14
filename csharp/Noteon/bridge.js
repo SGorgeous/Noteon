@@ -55,6 +55,7 @@
     listPlugins: function () { return call('listPlugins'); },
     reloadPlugins: function () { return call('listPlugins'); },
     getSettings: function () { return call('getSettings'); },
+    setAutoStart: function (on) { return call('setAutoStart', [on]); },
     setSettings: function (p) { return call('setSettings', [p]); },
     applyToAll: function (p) { return call('applyToAll', [p]); },
     getShellMenu: function () { return call('getShellMenu'); },

@@ -32,6 +32,7 @@ $cscArgs = @(
   (Join-Path $here 'CardWindow.cs'),
   (Join-Path $here 'PanelWindow.cs'),
   (Join-Path $here 'RegionWindow.cs'),
+  (Join-Path $here 'NewCardWindow.cs'),
   (Join-Path $here 'ShellMenu.cs'),
   (Join-Path $here 'AutoStart.cs')
 )

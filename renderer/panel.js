@@ -403,6 +403,12 @@
     bindSwitch('#setSnap', 'snap');
     bindSwitch('#setTaskbar', 'hideFromTaskbar');
     bindSwitch('#setPanel', 'showPanelOnStart');
+    $('#setAutoStart').addEventListener('change', async (e) => {
+      const on = await P.setAutoStart(e.target.checked);
+      settings.autoStart = !!on;
+      e.target.checked = !!on;
+      toast(on ? '已开启开机自启' : '已关闭开机自启');
+    });
     const menuModal = $('#menuModal');
     const menuList = $('#menuPlugins');
     const menuSelected = () => [...menuList.querySelectorAll('input:checked')].map((x) => x.value);
@@ -490,6 +496,7 @@
     $('#setSnap').checked = !!settings.snap;
     $('#setTaskbar').checked = !!settings.hideFromTaskbar;
     $('#setPanel').checked = !!settings.showPanelOnStart;
+    $('#setAutoStart').checked = settings.autoStart !== false;
     $('#setMenu').checked = !!settings.contextMenu;
     $('#dataDir').textContent = settings.dataDir || '—';
     $('#dataDir').title = settings.dataDir || '';

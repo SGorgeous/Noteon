@@ -47,6 +47,7 @@ public class AppHost
     public string BridgeJs;
     public List<CardWindow> Windows = new List<CardWindow>();
     public PanelWindow Panel;
+    public NewCardWindow NewCardWindow;
     public Task<CoreWebView2Environment> EnvironmentTask;
 
     public PluginInfo GetPlugin(string id)
@@ -196,6 +197,19 @@ public class AppHost
         }
         Store.Save();
         Windows[0].Activate();
+    }
+
+    public void ShowNewCardWindow()
+    {
+        if (NewCardWindow != null && NewCardWindow.IsVisible)
+        {
+            NewCardWindow.Activate();
+            return;
+        }
+        NewCardWindow = new NewCardWindow(this);
+        NewCardWindow.Closed += (s, e) => { NewCardWindow = null; };
+        NewCardWindow.Show();
+        NewCardWindow.Activate();
     }
 
     public void OpenNewCardPanel()

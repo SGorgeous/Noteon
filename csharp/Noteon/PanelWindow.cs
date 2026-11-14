@@ -203,6 +203,14 @@ public class PanelWindow : Window
         if (method == "hideAllCards") { foreach (var w in app.Windows) { w.Hide(); } return true; }
         if (method == "unlockAll") return true;
         if (method == "getSettings") return app.Store.Settings;
+        if (method == "setAutoStart")
+        {
+            bool on = args.Length > 0 && Convert.ToBoolean(args[0]);
+            AutoStart.Set(on);
+            app.Store.Settings["autoStart"] = on;
+            app.Store.Save();
+            return AutoStart.IsEnabled();
+        }
         if (method == "setSettings")
         {
             var patch = args.Length > 0 ? args[0] as Dictionary<string, object> : null;
