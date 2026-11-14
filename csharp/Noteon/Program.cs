@@ -57,11 +57,7 @@ class Program
         host.DataDir = dataDir;
         host.BridgeJs = File.ReadAllText(bridgePath);
 
-        if (reqPlugin != null)
-        {
-            host.CreateFromLaunch(reqPlugin, reqPath);
-        }
-        else if (store.Cards.Count == 0)
+        if (reqPlugin == null && store.Cards.Count == 0)
         {
             var state = new Dictionary<string, object>();
             state["text"] = "# 你好，Noteon (C# WebView2)\n\n这是新的 C# 宿主，正在逐步接管原来的 Electron 功能。\n\n- 透明卡片\n- 拖动标题栏移动\n- 右下角缩放\n- 关闭按钮";
@@ -77,6 +73,11 @@ class Program
         {
             var w = host.OpenCard(c, false);
             w.Show();
+        }
+
+        if (reqPlugin != null)
+        {
+            host.CreateFromLaunch(reqPlugin, reqPath);
         }
 
         HwndSource hotkey = null;
