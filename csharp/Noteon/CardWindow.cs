@@ -90,7 +90,14 @@ public class AppHost
 
     public string PluginUrl(string id, string file)
     {
-        return "https://noteon.local/plugins/" + id + "/" + file;
+        var url = "https://noteon.local/plugins/" + id + "/" + file;
+        try
+        {
+            var path = Path.Combine(WebRoot, "plugins", id, file);
+            if (File.Exists(path)) url += "?v=" + File.GetLastWriteTimeUtc(path).Ticks;
+        }
+        catch { }
+        return url;
     }
 
     public CardWindow OpenCard(Card card, bool show)
@@ -395,10 +402,11 @@ public class CardWindow : Window
             core.Settings.IsStatusBarEnabled = false;
             core.Settings.AreDevToolsEnabled = true;
             core.Settings.IsWebMessageEnabled = true;
+            try { await core.CallDevToolsProtocolMethodAsync("Network.enable", "{}"); await core.CallDevToolsProtocolMethodAsync("Network.setCacheDisabled", "{\"cacheDisabled\":true}"); } catch { }
             core.WebMessageReceived += OnWebMessage;
             core.NavigationCompleted += (s2, ev) => { if (loadingOverlay != null) loadingOverlay.Visibility = Visibility.Collapsed; PostWebState(ev.IsSuccess ? (CoreWebView2WebErrorStatus?)null : ev.WebErrorStatus, false); };
             await core.AddScriptToExecuteOnDocumentCreatedAsync(app.BridgeJs);
-            core.Navigate("https://noteon.local/renderer/card.html?card=" + Uri.EscapeDataString(Card.id));
+            core.Navigate("https://noteon.local/renderer/card.html?card=" + Uri.EscapeDataString(Card.id) + "&v=" + DateTime.UtcNow.Ticks);
             if (Card.desktop) ApplyDesktop(true);
             initializing = false;
         }

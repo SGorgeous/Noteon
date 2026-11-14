@@ -106,12 +106,10 @@ if (window.chrome && window.chrome.webview) document.body.classList.add('csharp-
       }
       card = info.card;
       manifest = info.manifest;
-      theme = window.NoteonTheme.resolve(info.theme.themeId, info.theme.customTheme, card);
-      window.NoteonTheme.apply(document.documentElement, theme);
-
       renderChrome();
       bindWindow();
       bindEvents();
+      applyTheme();
 
       if (manifest.styleUrl) {
         await new Promise((resolve) => {
@@ -207,9 +205,14 @@ if (window.chrome && window.chrome.webview) document.body.classList.add('csharp-
     theme = window.NoteonTheme.resolve(info.theme.themeId, info.theme.customTheme, card);
     // WebView2 无法真实采样桌面，高透明会让底下文字直接透出来；默认提高到接近不透明。
     if (document.body.classList.contains('csharp-host')) {
-      // 默认改为完全不透明；用户自己调过 alpha 时保留用户值。
+      // 不透明度作用于整张卡片，而不是只让背景变透明。
+      // 这样低不透明度时文字不会单独悬在桌面背景上。
       const customAlpha = info.theme.customTheme && Number.isFinite(info.theme.customTheme.alpha);
       if (!customAlpha && !Number.isFinite(card.alpha)) theme.alpha = 1;
+      document.documentElement.style.setProperty('--card-opacity', theme.alpha);
+      theme.alpha = 1;
+    } else {
+      document.documentElement.style.setProperty('--card-opacity', 1);
     }
     window.NoteonTheme.apply(document.documentElement, theme);
     btnPin.classList.toggle('active', !!card.alwaysOnTop);
