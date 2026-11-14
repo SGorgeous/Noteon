@@ -219,6 +219,9 @@ public class CardWindow : Window
     [DllImport("user32.dll")] private static extern IntPtr GetForegroundWindow();
     [DllImport("user32.dll")] private static extern IntPtr GetAncestor(IntPtr hWnd, uint flags);
     [DllImport("user32.dll")] private static extern int SetWindowLong(IntPtr hWnd, int index, int value);
+    [DllImport("user32.dll")] private static extern bool SetWindowPos(IntPtr hWnd, IntPtr after, int x, int y, int cx, int cy, uint flags);
+    [DllImport("user32.dll", CharSet = CharSet.Auto)] private static extern IntPtr FindWindow(string cls, string name);
+    [DllImport("user32.dll")] private static extern IntPtr GetWindow(IntPtr hWnd, uint cmd);
 
     private readonly AppHost app;
     public Card Card { get; private set; }
@@ -328,7 +331,7 @@ public class CardWindow : Window
             if (!initializing && !resizing && !applyingBounds && !isFullscreen) SaveBounds();
         };
         Closed += (s, e) => { if (resizeTimer != null) resizeTimer.Stop(); DisposeWebViews(); app.Remove(this); };
-        Deactivated += (s, e) => { if (isFullscreen) ExitFullscreen(); };
+        Deactivated += (s, e) => { if (isFullscreen) ExitFullscreen(); if (Card.desktop) SendToBottom(); };
     }
 
     public void StopWebMedia()
@@ -406,7 +409,7 @@ public class CardWindow : Window
             core.Settings.IsWebMessageEnabled = true;
             try { await core.CallDevToolsProtocolMethodAsync("Network.enable", "{}"); await core.CallDevToolsProtocolMethodAsync("Network.setCacheDisabled", "{\"cacheDisabled\":true}"); } catch { }
             core.WebMessageReceived += OnWebMessage;
-            core.NavigationCompleted += (s2, ev) => { if (loadingOverlay != null) loadingOverlay.Visibility = Visibility.Collapsed; PostWebState(ev.IsSuccess ? (CoreWebView2WebErrorStatus?)null : ev.WebErrorStatus, false); };
+            core.NavigationCompleted += (s2, ev) => { if (loadingOverlay != null) loadingOverlay.Visibility = Visibility.Collapsed; if (Card.desktop) SendToBottom(); PostWebState(ev.IsSuccess ? (CoreWebView2WebErrorStatus?)null : ev.WebErrorStatus, false); };
             await core.AddScriptToExecuteOnDocumentCreatedAsync(app.BridgeJs);
             core.Navigate("https://noteon.local/renderer/card.html?card=" + Uri.EscapeDataString(Card.id) + "&v=" + DateTime.UtcNow.Ticks);
             if (Card.desktop) ApplyDesktop(true);
@@ -1391,6 +1394,26 @@ public class CardWindow : Window
         return true;
     }
 
+    public void SendToBottom()
+    {
+        try
+        {
+            var hwnd = new WindowInteropHelper(this).Handle;
+            if (hwnd == IntPtr.Zero) return;
+            var progman = FindWindow("Progman", null);
+            if (progman == IntPtr.Zero) progman = FindWindow("WorkerW", null);
+            IntPtr after = IntPtr.Zero;
+            if (progman != IntPtr.Zero)
+            {
+                // 插到桌面窗口的上方、其他普通窗口的下方。
+                after = GetWindow(progman, 3); // GW_HWNDPREV
+            }
+            if (after == IntPtr.Zero) after = new IntPtr(1); // fallback HWND_BOTTOM
+            SetWindowPos(hwnd, after, 0, 0, 0, 0, 0x0001 | 0x0002 | 0x0010 | 0x0040);
+        }
+        catch { }
+    }
+
     public void ApplyDesktop(bool on)
     {
         Card.desktop = on;
@@ -1399,6 +1422,7 @@ public class CardWindow : Window
             Topmost = false;
             ShowInTaskbar = false;
             Show();
+            Dispatcher.BeginInvoke(new Action(SendToBottom), System.Windows.Threading.DispatcherPriority.Loaded);
         }
         else
         {

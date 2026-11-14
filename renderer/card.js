@@ -496,7 +496,7 @@ if (window.chrome && window.chrome.webview) document.body.classList.add('csharp-
     }));
     const items = [
       { id: 'pin', label: '窗口置顶', type: 'checkbox', checked: !!card.alwaysOnTop },
-      { id: 'desktop', label: '桌面模式（不置顶）', type: 'checkbox', checked: !!card.desktop },
+      { id: 'desktop', label: '置于最底层（桌面组件）', type: 'checkbox', checked: !!card.desktop },
       ...(card.plugin === 'web' ? [] : [{ id: 'lock', label: '鼠标穿透（锁定）', type: 'checkbox', checked: !!card.locked }]),
       { type: 'separator' },
       { label: '主题', submenu: themeItems },
