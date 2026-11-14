@@ -408,10 +408,23 @@
         if (current) requestAnimationFrame(() => fitView());
       }
 
-      stage.addEventListener('dblclick', (e) => {
+      // 用 pointerup 自己做双击判定，避免 pointer capture 吞掉原生 dblclick。
+      let lastStageTapAt = 0;
+      let lastStageTapX = 0;
+      let lastStageTapY = 0;
+      stage.addEventListener('pointerup', (e) => {
+        if (e.button !== 0) return;
         if (e.target.closest('.bar, .thumbs, .split-line, .empty')) return;
-        if (!current) return;
-        setImmersive(!immersive);
+        if (!current || moved) { lastStageTapAt = 0; return; }
+        const now = performance.now();
+        if (now - lastStageTapAt < 360 && Math.abs(e.clientX - lastStageTapX) < 8 && Math.abs(e.clientY - lastStageTapY) < 8) {
+          lastStageTapAt = 0;
+          setImmersive(!immersive);
+        } else {
+          lastStageTapAt = now;
+          lastStageTapX = e.clientX;
+          lastStageTapY = e.clientY;
+        }
       });
 
       stage.addEventListener('contextmenu', (e) => {

@@ -95,6 +95,23 @@
         thumbUrls = [];
       }
 
+      function bindOpen(el, ent) {
+        let lastTap = 0;
+        el.addEventListener('pointerup', (e) => {
+          if (e.button !== 0 || el._dragging) return;
+          if (e.target.closest('.fmeta')) return;
+          const now = performance.now();
+          if (now - lastTap < 360) {
+            lastTap = 0;
+            openEntry(ent);
+          } else {
+            lastTap = now;
+          }
+        });
+        el.addEventListener('dragstart', () => { el._dragging = true; });
+        el.addEventListener('dragend', () => { setTimeout(() => { el._dragging = false; }, 60); });
+      }
+
       function renderGrid(shown) {
         const grid = document.createElement('div');
         grid.className = 'fgrid';
@@ -134,7 +151,7 @@
             list.querySelectorAll('.frow.sel, .ftile.sel').forEach((el) => el.classList.remove('sel'));
             tile.classList.add('sel');
           });
-          tile.addEventListener('dblclick', () => openEntry(ent));
+          bindOpen(tile, ent);
           tile.addEventListener('contextmenu', (e) => {
             e.preventDefault();
             selectedPath = ent.path;
@@ -205,7 +222,7 @@
               list.querySelectorAll('.frow.sel').forEach((r) => r.classList.remove('sel'));
               row.classList.add('sel');
             });
-            row.addEventListener('dblclick', () => openEntry(ent));
+            bindOpen(row, ent);
             row.addEventListener('contextmenu', (e) => {
               e.preventDefault();
               selectedPath = ent.path;
