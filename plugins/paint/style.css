@@ -267,7 +267,7 @@
 body.paint-mode .frame {
   backdrop-filter: none !important;
   -webkit-backdrop-filter: none !important;
-  background: color-mix(in srgb, var(--bg) 97%, #0b0d12);
+  background: var(--bg);
 }
 
 .paint-demo {

@@ -207,8 +207,9 @@ if (window.chrome && window.chrome.webview) document.body.classList.add('csharp-
     theme = window.NoteonTheme.resolve(info.theme.themeId, info.theme.customTheme, card);
     // WebView2 无法真实采样桌面，高透明会让底下文字直接透出来；默认提高到接近不透明。
     if (document.body.classList.contains('csharp-host')) {
-      // WebView2 的透明卡片无法真正采样桌面，过低 alpha 会让底下文字直接透出来。
-      theme.alpha = Math.max(theme.alpha, 0.9);
+      // 默认改为完全不透明；用户自己调过 alpha 时保留用户值。
+      const customAlpha = info.theme.customTheme && Number.isFinite(info.theme.customTheme.alpha);
+      if (!customAlpha && !Number.isFinite(card.alpha)) theme.alpha = 1;
     }
     window.NoteonTheme.apply(document.documentElement, theme);
     btnPin.classList.toggle('active', !!card.alwaysOnTop);
@@ -434,7 +435,7 @@ if (window.chrome && window.chrome.webview) document.body.classList.add('csharp-
     const themeItems = Object.entries(window.NoteonTheme.THEMES).map(([id, t]) => ({
       id: 'theme:' + id, label: t.name, type: 'checkbox', checked: currentTheme === id,
     }));
-    const alphaItems = [100, 95, 90, 85, 80, 70, 60].map((v) => ({
+    const alphaItems = [100, 90, 80, 70, 60, 50, 40, 30, 20, 10, 0].map((v) => ({
       id: 'alpha:' + v, label: v + '%', type: 'checkbox', checked: currentAlpha === v,
     }));
     const items = [
