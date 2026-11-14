@@ -1,6 +1,7 @@
 """打包 Windows 便携版：dist/Noteon/ + dist/Noteon-win64.zip"""
 from __future__ import annotations
 
+import json
 import os
 import shutil
 import subprocess
@@ -17,6 +18,7 @@ if not os.path.exists(RCE):
 ICON_PNG = os.path.join(ROOT, "assets", "icon.png")
 ICON_ICO = os.path.join(ROOT, "assets", "icon.ico")
 ZIP = os.path.join(DIST, "Noteon-win64.zip")
+VERSION = json.load(open(os.path.join(ROOT, "package.json"), encoding="utf-8"))["version"]
 
 APP_ITEMS = ["main", "renderer", "plugins", "assets", "docs"]
 
@@ -71,8 +73,8 @@ def build():
         [
             RCE, exe,
             "--set-icon", ICON_ICO,
-            "--set-file-version", "0.1.0",
-            "--set-product-version", "0.1.0",
+            "--set-file-version", VERSION,
+            "--set-product-version", VERSION,
             "--set-version-string", "FileDescription", "Noteon 桌面便签",
             "--set-version-string", "ProductName", "Noteon",
             "--set-version-string", "CompanyName", "SGorgeous",

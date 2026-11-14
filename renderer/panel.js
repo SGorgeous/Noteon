@@ -398,6 +398,17 @@
     bindSwitch('#setSnap', 'snap');
     bindSwitch('#setTaskbar', 'hideFromTaskbar');
     bindSwitch('#setPanel', 'showPanelOnStart');
+    $('#setMenu').addEventListener('change', async (e) => {
+      const enabled = e.target.checked;
+      const r = await P.setShellMenu(enabled);
+      if (!r || !r.ok) {
+        e.target.checked = !enabled;
+        toast('右键菜单设置失败：' + ((r && r.error) || '未知错误'), true);
+        return;
+      }
+      settings.contextMenu = enabled;
+      toast(enabled ? '已添加右键菜单（Win11 可能在「显示更多选项」里）' : '已移除右键菜单');
+    });
 
     $('#openData').addEventListener('click', () => P.openDataDir());
     $('#openPlugins').addEventListener('click', () => P.openPluginDir());
@@ -427,6 +438,7 @@
     $('#setSnap').checked = !!settings.snap;
     $('#setTaskbar').checked = !!settings.hideFromTaskbar;
     $('#setPanel').checked = !!settings.showPanelOnStart;
+    $('#setMenu').checked = !!settings.contextMenu;
     $('#dataDir').textContent = settings.dataDir || '—';
     $('#dataDir').title = settings.dataDir || '';
     $('#pluginDir').textContent = settings.pluginDir || '—';

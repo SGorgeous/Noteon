@@ -10,6 +10,7 @@ const { Store } = require('./store');
 const { PluginHost } = require('./plugins');
 const { CardManager } = require('./cards');
 const { WebViewManager } = require('./webviews');
+const shellMenu = require('./shellmenu');
 
 const ROOT = path.join(__dirname, '..');
 const SMOKE = process.argv.includes('--smoke') || process.env.NOTEON_SMOKE === '1';
@@ -18,6 +19,76 @@ const ASSETS = path.join(ROOT, 'assets');
 const DATA_DIR = app.isPackaged
   ? path.join(path.dirname(process.execPath), 'data')
   : path.join(ROOT, 'data');
+
+
+const LAUNCH_PLUGINS = ['note', 'text', 'image', 'folder', 'web', 'relay'];
+
+function parseNewArgs(argv) {
+  const args = (argv || []).slice(1);
+  let plugin = '';
+  let p = '';
+  let newSeen = false;
+  for (let i = 0; i < args.length; i++) {
+    const a = args[i];
+    if (a === '--new') { newSeen = true; continue; }
+    if (a === '--path') {
+      for (let j = i + 1; j < args.length; j++) {
+        const v = args[j];
+        if (path.win32.isAbsolute(v)) { p = v; break; }
+      }
+      continue;
+    }
+    // Electron 会把 Chromium 开关插在 --new 和值之间，所以按已知插件名找，而不是取下一个 token
+    if (newSeen && LAUNCH_PLUGINS.includes(a)) plugin = a;
+  }
+  if (!newSeen) return null;
+  return { plugin: plugin || 'note', path: p };
+}
+
+let pendingLaunch = parseNewArgs(process.argv);
+
+function shellMenuOptions() {
+  return {
+    packaged: app.isPackaged,
+    execPath: process.execPath,
+    appPath: ROOT,
+    icon: app.isPackaged ? process.execPath : path.join(ASSETS, 'icon.ico'),
+  };
+}
+
+function createFromLaunch(req) {
+  if (!req) return;
+  if (!cards || !plugins) { pendingLaunch = req; return; }
+  const pluginId = plugins.get(req.plugin) ? req.plugin : 'note';
+  const state = {};
+  if (req.path && pluginId === 'folder') {
+    try { if (fs.statSync(req.path).isDirectory()) state.path = req.path; } catch {}
+  }
+  const cursor = screen.getCursorScreenPoint();
+  try {
+    cards.create({
+      plugin: pluginId,
+      state,
+      bounds: { x: cursor.x - 140, y: cursor.y - 80 },
+      focus: true,
+    });
+  } catch (err) {
+    console.error('[launch] 新建卡片失败:', err.message);
+    openPanel();
+  }
+}
+
+function syncShellMenu() {
+  if (SMOKE || DEMO) return;
+  if (store.settings.contextMenu == null) {
+    store.settings.contextMenu = app.isPackaged;
+    store.touch();
+  }
+  if (store.settings.contextMenu) {
+    try { shellMenu.install(shellMenuOptions()); }
+    catch (err) { console.warn('[shellmenu] 安装失败:', err.message); }
+  }
+}
 
 app.setName('Noteon');
 if (SMOKE || DEMO) {
@@ -69,7 +140,11 @@ const gotLock = app.requestSingleInstanceLock();
 if (!gotLock) {
   app.quit();
 } else {
-  app.on('second-instance', () => openPanel());
+  app.on('second-instance', (_event, argv) => {
+  const req = parseNewArgs(argv);
+  if (req) createFromLaunch(req);
+  else openPanel();
+});
   app.whenReady().then(boot).catch((err) => {
     console.error('[boot] 启动失败', err);
     app.quit();
@@ -166,6 +241,7 @@ async function boot() {
   if (!SMOKE && !DEMO) migrateLegacyData(app.getPath('userData'));
   store = new Store(path.join(app.getPath('userData'), 'board.json'));
   store.load();
+  syncShellMenu();
   plugins = new PluginHost(path.join(ROOT, 'plugins'), { store });
   plugins.scan();
   cards = new CardManager({ store, plugins, root: ROOT, smoke: SMOKE });
@@ -177,10 +253,12 @@ async function boot() {
   buildTray();
 
   const firstRun = store.cards.length === 0;
+  const launch = pendingLaunch;
+  pendingLaunch = null;
 
   if (store.settings.restoreOnStart && store.cards.length) {
     cards.restore();
-  } else if (!SMOKE && !DEMO && store.cards.length === 0) {
+  } else if (!launch && !SMOKE && !DEMO && store.cards.length === 0) {
     const area = screen.getPrimaryDisplay().workArea;
     cards.create({
       plugin: 'note',
@@ -204,7 +282,8 @@ async function boot() {
     });
   }
 
-  if (!SMOKE && (firstRun || store.settings.showPanelOnStart)) openPanel();
+  if (launch) createFromLaunch(launch);
+  else if (!SMOKE && (firstRun || store.settings.showPanelOnStart)) openPanel();
   if (SMOKE) setTimeout(() => { runSmoke().catch((err) => { console.error('[smoke] 失败', err); app.exit(1); }); }, 350);
   else if (DEMO) setTimeout(runDemo, 350);
 
@@ -569,6 +648,19 @@ function registerIpc() {
     const win = BrowserWindow.fromWebContents(event.sender);
     if (win) win.isMaximized() ? win.unmaximize() : win.maximize();
   });
+
+  ipcMain.handle('shellmenu:set', (_e, enabled) => {
+    try {
+      if (enabled) shellMenu.install(shellMenuOptions());
+      else shellMenu.uninstall();
+      store.settings.contextMenu = !!enabled;
+      store.touch();
+      return { ok: true, enabled: !!enabled };
+    } catch (err) {
+      return { ok: false, error: err.message };
+    }
+  });
+  ipcMain.handle('shellmenu:get', () => ({ setting: !!store.settings.contextMenu, installed: shellMenu.isInstalled() }));
 
   /* ---- 插件 ---- */
   ipcMain.handle('plugins:list', () => plugins.list());

@@ -11,6 +11,7 @@ const DEFAULT_SETTINGS = {
   snap: true,
   hideFromTaskbar: true,
   showPanelOnStart: false,
+  contextMenu: null,
 };
 
 function makeId(prefix = 'c') {
