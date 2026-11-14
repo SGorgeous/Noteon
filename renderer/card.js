@@ -11,6 +11,8 @@
   const statusText = $('#statusText');
   const btnHide = $('#btnHide');
   const btnPin = $('#btnPin');
+  const btnFull = $('#btnFull');
+  const btnMini = $('#btnMini');
   const btnMore = $('#btnMore');
   const btnClose = $('#btnClose');
 
@@ -168,8 +170,12 @@
     btnHide.innerHTML = window.NI.icon('eyeOff', 14);
     btnHide.title = '隐藏卡片（从托盘或控制台恢复）';
     btnPin.innerHTML = window.NI.icon('pin', 14);
+    btnFull.innerHTML = window.NI.icon('fit', 14);
+    btnMini.innerHTML = window.NI.icon('square', 14);
     btnMore.innerHTML = window.NI.icon('dots', 14);
     btnClose.innerHTML = window.NI.icon('close', 14);
+    btnFull.title = '全屏显示（再点一次恢复）';
+    btnMini.title = '小窗模式';
     btnPin.title = card.alwaysOnTop ? '已置顶（点击取消）' : '置顶窗口';
     btnPin.classList.toggle('active', !!card.alwaysOnTop);
 
@@ -278,6 +284,14 @@
     btnHide.addEventListener('click', () => window.noteon.hide());
     btnClose.addEventListener('click', () => window.noteon.close());
     btnMore.addEventListener('click', openCardMenu);
+    btnFull.addEventListener('click', async () => {
+      const full = await window.noteon.fullscreen();
+      btnFull.classList.toggle('active', !!full);
+    });
+    btnMini.addEventListener('click', async () => {
+      await window.noteon.smallWindow();
+      btnFull.classList.remove('active');
+    });
 
     /* ---- 标题重命名 ---- */
     titleEl.addEventListener('dblclick', () => startRename());
@@ -312,6 +326,96 @@
     });
   }
 
+  function showCardMenu(items) {
+    const menu = document.querySelector('#cardMenu');
+    return new Promise((resolve) => {
+      const close = (value) => {
+        menu.classList.add('hidden');
+        menu.innerHTML = '';
+        document.removeEventListener('pointerdown', outside, true);
+        document.removeEventListener('keydown', esc, true);
+        resolve(value || null);
+      };
+      const outside = (e) => { if (!menu.contains(e.target)) close(null); };
+      const esc = (e) => { if (e.key === 'Escape') close(null); };
+
+      const build = (parent, list) => {
+        for (const item of list || []) {
+          if (item.type === 'separator') {
+            const sep = document.createElement('div');
+            sep.className = 'cm-sep';
+            parent.appendChild(sep);
+            continue;
+          }
+          const row = document.createElement('div');
+          row.className = 'cm-item';
+          if (item.enabled === false) row.classList.add('disabled');
+          const check = document.createElement('span');
+          check.className = 'cm-check';
+          check.textContent = item.type === 'checkbox' && item.checked ? '✓' : '';
+          const label = document.createElement('span');
+          label.className = 'cm-label';
+          label.textContent = item.label || '';
+          row.appendChild(check);
+          row.appendChild(label);
+          if (item.submenu) {
+            const arrow = document.createElement('span');
+            arrow.className = 'cm-arrow';
+            arrow.textContent = '›';
+            row.appendChild(arrow);
+            const sub = document.createElement('div');
+            sub.className = 'cm-sub';
+            build(sub, item.submenu);
+            row.appendChild(sub);
+            const placeSub = () => {
+              requestAnimationFrame(() => {
+                if (!sub.classList.contains('open') && !row.classList.contains('open') && !row.matches(':hover')) return;
+                const r = sub.getBoundingClientRect();
+                sub.classList.toggle('left', r.right > window.innerWidth - 8);
+                const rr = sub.getBoundingClientRect();
+                let shift = 0;
+                if (rr.bottom > window.innerHeight - 8) shift = window.innerHeight - 8 - rr.bottom;
+                if (rr.top + shift < 8) shift = 8 - rr.top;
+                sub.style.top = (-6 + shift) + 'px';
+              });
+            };
+            row.addEventListener('mouseenter', placeSub);
+            row.addEventListener('click', (e) => {
+              e.stopPropagation();
+              const open = row.classList.contains('open');
+              menu.querySelectorAll('.cm-item.open').forEach((el) => el.classList.remove('open'));
+              row.classList.toggle('open', !open);
+              placeSub();
+            });
+          } else {
+            row.addEventListener('click', () => {
+              if (item.enabled === false) return;
+              close(item.id || null);
+            });
+          }
+          parent.appendChild(row);
+        }
+      };
+
+      build(menu, items);
+      menu.classList.remove('hidden');
+      menu.style.left = '8px';
+      menu.style.top = '48px';
+      const rect = btnMore.getBoundingClientRect();
+      requestAnimationFrame(() => {
+        const margin = 8;
+        const maxLeft = Math.max(margin, window.innerWidth - menu.offsetWidth - margin);
+        menu.style.left = Math.max(margin, Math.min(rect.right - menu.offsetWidth, maxLeft)) + 'px';
+        menu.classList.toggle('left-sub', rect.right > window.innerWidth / 2);
+        let top = rect.bottom + 6;
+        if (top + menu.offsetHeight > window.innerHeight - margin) top = Math.max(margin, rect.top - menu.offsetHeight - 6);
+        menu.style.top = top + 'px';
+      });
+      setTimeout(() => document.addEventListener('pointerdown', outside, true), 0);
+      document.addEventListener('keydown', esc, true);
+    });
+  }
+
   async function openCardMenu() {
     const currentTheme = card.themeId || info.theme.themeId;
     const currentAlpha = Math.round((Number.isFinite(card.alpha) ? card.alpha : theme.alpha) * 100);
@@ -335,7 +439,7 @@
       { type: 'separator' },
       { id: 'close', label: '关闭卡片' },
     ];
-    const picked = await window.noteon.menu(items);
+    const picked = await showCardMenu(items);
     if (!picked) return;
     if (picked === 'pin') {
       card = await window.noteon.updateCard({ alwaysOnTop: !card.alwaysOnTop }) || card;
@@ -481,6 +585,11 @@
       openPath(p) { return window.noteon.openPath(p); },
       openUrl(u) { return window.noteon.openUrl(u); },
       copy(text) { return window.noteon.copyText(text); },
+      setStylusArea(area) { return window.noteon.setStylusArea(area); },
+      readClipboardImage() { return window.noteon.readClipboardImage(); },
+      writeClipboardImage(data) { return window.noteon.writeClipboardImage(data); },
+      readClipboardText() { return window.noteon.readClipboardText(); },
+      writeClipboardText(text) { return window.noteon.writeClipboardText(text); },
       dragFile(p) { return window.noteon.dragFile(p); },
       menu(items, x, y) { return window.noteon.menu(items, x, y); },
       invoke(fn, args) { return window.noteon.invoke(fn, args); },

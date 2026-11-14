@@ -58,6 +58,7 @@
             <button class="ib zoombar" data-act="zoomlabel" title="点击适应窗口">—</button>
             <button class="ib" data-act="zoomin" title="放大">+</button>
             <span class="sep"></span>
+            <button class="ib" data-act="copyimg" title="复制图片到剪贴板">${ctx.icon('copy', 14)}</button>
             <button class="ib" data-act="split" title="对比（左 当前 / 右 下一张）">${ctx.icon('split', 14)}</button>
             <span class="swatch"></span>
             <button class="ib" data-act="more" title="更多">${ctx.icon('dots', 14)}</button>
@@ -373,10 +374,23 @@
         if (current) requestAnimationFrame(() => fitView());
       }
 
-      stage.addEventListener('dblclick', (e) => {
+      // 用 pointerup 自己做双击判定：数位板/鼠标双击都更可靠。
+      let lastTapAt = 0;
+      let lastTapX = 0;
+      let lastTapY = 0;
+      stage.addEventListener('pointerup', (e) => {
+        if (e.button !== 0) return;
         if (e.target.closest('.bar, .thumbs, .split-line, .empty')) return;
-        if (!current) return;
-        setImmersive(!immersive);
+        if (!current || moved) { lastTapAt = 0; return; }
+        const now = performance.now();
+        if (now - lastTapAt < 360 && Math.abs(e.clientX - lastTapX) < 8 && Math.abs(e.clientY - lastTapY) < 8) {
+          lastTapAt = 0;
+          setImmersive(!immersive);
+        } else {
+          lastTapAt = now;
+          lastTapX = e.clientX;
+          lastTapY = e.clientY;
+        }
       });
 
       stage.addEventListener('contextmenu', (e) => {
@@ -431,6 +445,21 @@
       root.addEventListener('click', (e) => {
         if (e.target.closest('[data-act="open-empty"]')) openDialog();
       });
+      async function copyCurrent() {
+        if (!current) { api.toast('没有图片'); return; }
+        try {
+          const img = new Image();
+          img.src = current.url;
+          await img.decode();
+          const c = document.createElement('canvas');
+          c.width = img.naturalWidth; c.height = img.naturalHeight;
+          c.getContext('2d').drawImage(img, 0, 0);
+          const ok = await api.writeClipboardImage(c.toDataURL('image/png'));
+          api.toast(ok ? '图片已复制到剪贴板' : '复制失败');
+        } catch (err) { api.toast('复制失败：' + err.message); }
+      }
+
+      root.querySelector('[data-act="copyimg"]').addEventListener('click', copyCurrent);
       root.querySelector('[data-act="fit"]').addEventListener('click', fitView);
       root.querySelector('[data-act="one"]').addEventListener('click', oneToOne);
       root.querySelector('[data-act="zoomlabel"]').addEventListener('click', fitView);

@@ -1,0 +1,19 @@
+{
+  "id": "paint",
+  "name": "绘画 Demo",
+  "description": "精简演示版绘画卡片：笔刷、图层、取色、图片卡片导入。",
+  "version": "0.1.0-demo",
+  "icon": "icon.svg",
+  "entry": "index.js",
+  "style": "style.css",
+  "defaultSize": [
+    780,
+    580
+  ],
+  "minSize": [
+    420,
+    320
+  ],
+  "order": 65,
+  "accent": "#b58cff"
+}

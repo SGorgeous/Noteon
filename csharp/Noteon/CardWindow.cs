@@ -16,8 +16,11 @@ using System.Windows.Controls;
 using System.Windows.Input;
 using System.Windows.Interop;
 using System.Windows.Shell;
+using System.Windows.Markup;
 using System.Windows.Threading;
 using System.Windows.Media;
+using System.Windows.Media.Imaging;
+using System.Windows.Media.Animation;
 using Microsoft.Web.WebView2.Core;
 using Microsoft.Web.WebView2.Wpf;
 
@@ -205,6 +208,9 @@ public class CardWindow : Window
 {
     [DllImport("user32.dll")] private static extern bool ReleaseCapture();
     [DllImport("user32.dll")] private static extern IntPtr SendMessage(IntPtr hWnd, uint msg, IntPtr wParam, IntPtr lParam);
+    [DllImport("user32.dll")] private static extern short GetAsyncKeyState(int vKey);
+    [DllImport("user32.dll")] private static extern bool SetCursorPos(int x, int y);
+    [DllImport("user32.dll")] private static extern void mouse_event(uint flags, uint dx, uint dy, uint data, UIntPtr extra);
 
     private readonly AppHost app;
     public Card Card { get; private set; }
@@ -230,6 +236,13 @@ public class CardWindow : Window
     private Style menuItemStyle;
     private bool resizing;
     private bool moving;
+    private bool isFullscreen;
+    private bool applyingBounds;
+    private Rect restoreBounds;
+    private bool topmostBeforeFullscreen;
+    private Rect? stylusCanvas;
+    private List<Rect> stylusExclude = new List<Rect>();
+    private Border loadingOverlay;
 
     public CardWindow(Card card, AppHost app)
     {
@@ -255,21 +268,56 @@ public class CardWindow : Window
         Height = Math.Max(160, card.h);
         Topmost = card.alwaysOnTop;
 
-        web = new WebView2CompositionControl();
-        web.DefaultBackgroundColor = System.Drawing.Color.Transparent;
-        webView = new WebView2();
-        webView.DefaultBackgroundColor = System.Drawing.Color.White;
-        webView.Visibility = Visibility.Collapsed;
-        webView.HorizontalAlignment = HorizontalAlignment.Left;
-        webView.VerticalAlignment = VerticalAlignment.Top;
         rootGrid = new Grid();
-        rootGrid.Children.Add(web);
-        rootGrid.Children.Add(webView);
+        rootGrid.Background = new SolidColorBrush(System.Windows.Media.Color.FromArgb(235, 18, 22, 30));
+        var loading = new Border();
+        loading.Background = new SolidColorBrush(System.Windows.Media.Color.FromArgb(245, 18, 22, 30));
+        loading.CornerRadius = new CornerRadius(12);
+        var stack = new StackPanel();
+        stack.VerticalAlignment = VerticalAlignment.Center;
+        stack.HorizontalAlignment = HorizontalAlignment.Center;
+        var pname = new TextBlock();
+        pname.Text = app.GetPlugin(Card.plugin).name;
+        pname.Foreground = new SolidColorBrush(System.Windows.Media.Color.FromRgb(232, 238, 248));
+        pname.FontSize = 15;
+        pname.HorizontalAlignment = HorizontalAlignment.Center;
+        var hint = new TextBlock();
+        hint.Text = "正在加载…";
+        hint.Foreground = new SolidColorBrush(System.Windows.Media.Color.FromRgb(150, 162, 180));
+        hint.FontSize = 11.5;
+        hint.Margin = new Thickness(0, 6, 0, 0);
+        hint.HorizontalAlignment = HorizontalAlignment.Center;
+        var bar = new ProgressBar();
+        bar.IsIndeterminate = true;
+        bar.Width = 96;
+        bar.Height = 3;
+        bar.Margin = new Thickness(0, 12, 0, 0);
+        bar.Foreground = new SolidColorBrush(System.Windows.Media.Color.FromRgb(165, 140, 255));
+        bar.Background = new SolidColorBrush(System.Windows.Media.Color.FromArgb(70, 255, 255, 255));
+        bar.BorderThickness = new Thickness(0);
+        stack.Children.Add(pname);
+        stack.Children.Add(hint);
+        stack.Children.Add(bar);
+        loading.Child = stack;
+        rootGrid.Children.Add(loading);
+        rootGrid.Clip = new RectangleGeometry(new Rect(0, 0, Math.Max(1, Width), Math.Max(1, Height)), 14, 14);
         Content = rootGrid;
+        loadingOverlay = loading;
+        Opacity = 0;
 
+        Stylus.SetIsPressAndHoldEnabled(this, false);
+        Stylus.SetIsFlicksEnabled(this, false);
+        Stylus.SetIsTapFeedbackEnabled(this, false);
+        Loaded += (s, e) => { BeginAnimation(OpacityProperty, new DoubleAnimation(0, 1, TimeSpan.FromMilliseconds(150))); };
         Loaded += OnLoaded;
-        LocationChanged += (s, e) => { if (!initializing && !moving) SaveBounds(); };
-        SizeChanged += (s, e) => { if (!initializing && !resizing) SaveBounds(); };
+        PreviewStylusDown += (s, e) => PostStylus("down", e);
+        PreviewStylusMove += (s, e) => PostStylus("move", e);
+        PreviewStylusUp += (s, e) => PostStylus("up", e);
+        LocationChanged += (s, e) => { if (!initializing && !moving && !resizing && !applyingBounds && !isFullscreen) SaveBounds(); };
+        SizeChanged += (s, e) => {
+            if (!isFullscreen) rootGrid.Clip = new RectangleGeometry(new Rect(0, 0, Math.Max(1, ActualWidth), Math.Max(1, ActualHeight)), 14, 14);
+            if (!initializing && !resizing && !applyingBounds && !isFullscreen) SaveBounds();
+        };
         Closed += (s, e) => { if (resizeTimer != null) resizeTimer.Stop(); DisposeWebViews(); app.Remove(this); };
     }
 
@@ -323,8 +371,18 @@ public class CardWindow : Window
         try
         {
             var env = await app.EnvironmentTask;
+            // 先把窗口显示出来，再创建 WebView2，避免新建卡片时窗口迟迟不出现。
+            web = new WebView2CompositionControl();
+            web.DefaultBackgroundColor = System.Drawing.Color.Transparent;
+            rootGrid.Children.Insert(0, web);
             if (Card.plugin == "web")
             {
+                webView = new WebView2();
+                webView.DefaultBackgroundColor = System.Drawing.Color.White;
+                webView.Visibility = Visibility.Collapsed;
+                webView.HorizontalAlignment = HorizontalAlignment.Left;
+                webView.VerticalAlignment = VerticalAlignment.Top;
+                rootGrid.Children.Add(webView);
                 await webView.EnsureCoreWebView2Async(env);
                 SetupWebView();
             }
@@ -332,10 +390,12 @@ public class CardWindow : Window
             var core = web.CoreWebView2;
             core.SetVirtualHostNameToFolderMapping("noteon.local", app.WebRoot, CoreWebView2HostResourceAccessKind.DenyCors);
             core.Settings.AreDefaultContextMenusEnabled = false;
+            try { core.Settings.IsSwipeNavigationEnabled = false; } catch { }
             core.Settings.IsStatusBarEnabled = false;
             core.Settings.AreDevToolsEnabled = true;
             core.Settings.IsWebMessageEnabled = true;
             core.WebMessageReceived += OnWebMessage;
+            core.NavigationCompleted += (s2, ev) => { if (loadingOverlay != null) loadingOverlay.Visibility = Visibility.Collapsed; PostWebState(ev.IsSuccess ? (CoreWebView2WebErrorStatus?)null : ev.WebErrorStatus, false); };
             await core.AddScriptToExecuteOnDocumentCreatedAsync(app.BridgeJs);
             core.Navigate("https://noteon.local/renderer/card.html?card=" + Uri.EscapeDataString(Card.id));
             if (Card.desktop) ApplyDesktop(true);
@@ -515,8 +575,15 @@ public class CardWindow : Window
         menu.Placement = PlacementMode.MousePoint;
         menu.PlacementTarget = web;
         menu.Closed += (s, e) => { if (!tcs.Task.IsCompleted) tcs.TrySetResult(null); };
-        BuildMenu(menu.Items, items, tcs, menu);
-        menu.IsOpen = true;
+        try
+        {
+            BuildMenu(menu.Items, items, tcs, menu);
+            menu.IsOpen = true;
+        }
+        catch
+        {
+            tcs.TrySetResult(null);
+        }
         return tcs.Task;
     }
 
@@ -543,6 +610,50 @@ public class CardWindow : Window
         itemStyle.Setters.Add(new Setter(MenuItem.FontSizeProperty, 12.5));
         itemStyle.Setters.Add(new Setter(MenuItem.PaddingProperty, new Thickness(10, 6, 14, 6)));
         itemStyle.Setters.Add(new Setter(MenuItem.MinHeightProperty, 30.0));
+        try
+        {
+            var xaml = @"<ControlTemplate xmlns='http://schemas.microsoft.com/winfx/2006/xaml/presentation' xmlns:x='http://schemas.microsoft.com/winfx/2006/xaml' TargetType='{x:Type MenuItem}'>
+  <Grid>
+    <Border x:Name='Bd' Background='#171B24' CornerRadius='6' Padding='{TemplateBinding Padding}'>
+      <Grid>
+        <Grid.ColumnDefinitions>
+          <ColumnDefinition Width='*'/>
+          <ColumnDefinition Width='12'/>
+        </Grid.ColumnDefinitions>
+        <ContentPresenter Grid.Column='0' ContentSource='Header' RecognizesAccessKey='True' VerticalAlignment='Center'/>
+        <Path x:Name='Arrow' Grid.Column='1' Data='M0,0 L4,4 L0,8' Stroke='#A8B3C4' StrokeThickness='1.4' Visibility='Collapsed' HorizontalAlignment='Right' VerticalAlignment='Center'/>
+      </Grid>
+    </Border>
+    <Popup x:Name='PART_Popup' AllowsTransparency='True' Focusable='False' IsOpen='{TemplateBinding IsSubmenuOpen}' Placement='Right' HorizontalOffset='0' VerticalOffset='-4'>
+      <Border Background='#171B24' BorderBrush='#3A4252' BorderThickness='1' CornerRadius='8' Padding='4'>
+        <ItemsPresenter/>
+      </Border>
+    </Popup>
+  </Grid>
+  <ControlTemplate.Triggers>
+    <Trigger Property='IsHighlighted' Value='True'><Setter TargetName='Bd' Property='Background' Value='#2B3242'/></Trigger>
+        <Trigger Property='HasItems' Value='True'><Setter TargetName='Arrow' Property='Visibility' Value='Visible'/></Trigger>
+    <Trigger Property='IsEnabled' Value='False'><Setter Property='Opacity' Value='0.45'/></Trigger>
+  </ControlTemplate.Triggers>
+</ControlTemplate>";
+            itemStyle.Setters.Add(new Setter(Control.TemplateProperty, XamlReader.Parse(xaml)));
+            menu.Resources[typeof(MenuItem)] = itemStyle;
+        }
+        catch (Exception ex) { try { File.AppendAllText(Path.Combine(app.DataDir, "menu.log"), ex.ToString() + Environment.NewLine); } catch { } }
+        try
+        {
+            var sepXaml = @"<ControlTemplate xmlns='http://schemas.microsoft.com/winfx/2006/xaml/presentation' TargetType='{x:Type Separator}'><Border Height='1' Background='#363E4E' Margin='8,3,8,3'/></ControlTemplate>";
+            var sepStyle = new Style(typeof(Separator));
+            sepStyle.Setters.Add(new Setter(Control.TemplateProperty, XamlReader.Parse(sepXaml)));
+            menu.Resources[typeof(Separator)] = sepStyle;
+        }
+        catch { }
+        try
+        {
+            var menuXaml = @"<ControlTemplate xmlns='http://schemas.microsoft.com/winfx/2006/xaml/presentation' TargetType='{x:Type ContextMenu}'><Border Background='#171B24' BorderBrush='#3A4252' BorderThickness='1' CornerRadius='8' Padding='4'><ScrollViewer VerticalScrollBarVisibility='Auto'><ItemsPresenter/></ScrollViewer></Border></ControlTemplate>";
+            menu.Template = (ControlTemplate)XamlReader.Parse(menuXaml);
+        }
+        catch (Exception ex) { try { File.AppendAllText(Path.Combine(app.DataDir, "menu.log"), ex.ToString() + Environment.NewLine); } catch { } }
         menuItemStyle = itemStyle;
     }
 
@@ -557,7 +668,9 @@ public class CardWindow : Window
             if (type == "separator") { target.Add(new Separator()); continue; }
             var item = new MenuItem();
             if (menuItemStyle != null) item.Style = menuItemStyle;
-            item.Header = d.ContainsKey("label") ? Convert.ToString(d["label"]) : "";
+            var label = d.ContainsKey("label") ? Convert.ToString(d["label"]) : "";
+            if (type == "checkbox") item.Header = (d.ContainsKey("checked") && Convert.ToBoolean(d["checked"]) ? "✓  " : "    ") + label;
+            else item.Header = label;
             if (d.ContainsKey("enabled")) item.IsEnabled = Convert.ToBoolean(d["enabled"]);
             if (type == "checkbox") { item.IsCheckable = true; item.IsChecked = d.ContainsKey("checked") && Convert.ToBoolean(d["checked"]); }
             var sub = d.ContainsKey("submenu") ? d["submenu"] as IList : null;
@@ -597,6 +710,19 @@ public class CardWindow : Window
                 foreach (var kv in patch) Card.state[kv.Key] = kv.Value;
             }
             app.Store.Save();
+            return true;
+        }
+        if (method == "setStylusArea")
+        {
+            var area = args.Length > 0 ? args[0] as Dictionary<string, object> : null;
+            stylusCanvas = null;
+            stylusExclude.Clear();
+            if (area != null)
+            {
+                if (area.ContainsKey("canvas")) stylusCanvas = RectFrom(area["canvas"] as Dictionary<string, object>);
+                var ex = area.ContainsKey("exclude") ? area["exclude"] as IList : null;
+                if (ex != null) foreach (var o in ex) { var r = RectFrom(o as Dictionary<string, object>); if (r.HasValue) stylusExclude.Add(r.Value); }
+            }
             return true;
         }
         if (method == "close") { StopWebMedia(); app.Store.Remove(Card); Close(); return true; }
@@ -643,7 +769,34 @@ public class CardWindow : Window
             return true;
         }
         if (method == "openDevTools") { web.CoreWebView2.OpenDevToolsWindow(); return true; }
-        if (method == "copy") { Clipboard.SetText(args.Length > 0 ? Convert.ToString(args[0]) : ""); return true; }
+        if (method == "copy" || method == "writeClipboardText") { Clipboard.SetText(args.Length > 0 ? Convert.ToString(args[0]) : ""); return true; }
+        if (method == "readClipboardText") { try { return Clipboard.ContainsText() ? Clipboard.GetText() : ""; } catch { return ""; } }
+        if (method == "writeClipboardImage")
+        {
+            try
+            {
+                var src = DecodeDataUrl(args.Length > 0 ? Convert.ToString(args[0]) : "");
+                if (src == null) return false;
+                Clipboard.SetImage(src);
+                return true;
+            }
+            catch { return false; }
+        }
+        if (method == "readClipboardImage")
+        {
+            var d = new Dictionary<string, object>();
+            try
+            {
+                var img = Clipboard.GetImage();
+                if (img == null) { d["ok"] = false; d["error"] = "剪贴板没有图片"; return d; }
+                d["ok"] = true;
+                d["dataUrl"] = "data:image/png;base64," + Convert.ToBase64String(EncodePng(img));
+                d["width"] = img.PixelWidth;
+                d["height"] = img.PixelHeight;
+            }
+            catch (Exception ex) { d["ok"] = false; d["error"] = ex.Message; }
+            return d;
+        }
         if (method == "openFile")
         {
             var p = args.Length > 0 ? Convert.ToString(args[0]) : "";
@@ -814,6 +967,8 @@ public class CardWindow : Window
             return true;
         }
         if (method == "setStatus") return true;
+        if (method == "fullscreen") return ToggleFullscreen();
+        if (method == "smallWindow") return SmallWindow();
         if (method == "dragFile")
         {
             try
@@ -831,6 +986,35 @@ public class CardWindow : Window
         }
         if (method == "toast" || method == "menu") return null;
         return null;
+    }
+
+    private static byte[] EncodePng(BitmapSource src)
+    {
+        var enc = new PngBitmapEncoder();
+        enc.Frames.Add(BitmapFrame.Create(src));
+        using (var ms = new MemoryStream())
+        {
+            enc.Save(ms);
+            return ms.ToArray();
+        }
+    }
+
+    private static BitmapSource DecodeDataUrl(string dataUrl)
+    {
+        if (string.IsNullOrEmpty(dataUrl)) return null;
+        var comma = dataUrl.IndexOf(',');
+        var b64 = comma >= 0 ? dataUrl.Substring(comma + 1) : dataUrl;
+        var bytes = Convert.FromBase64String(b64);
+        using (var ms = new MemoryStream(bytes))
+        {
+            var bmp = new BitmapImage();
+            bmp.BeginInit();
+            bmp.CacheOption = BitmapCacheOption.OnLoad;
+            bmp.StreamSource = ms;
+            bmp.EndInit();
+            bmp.Freeze();
+            return bmp;
+        }
     }
 
     private static Dictionary<string, object> LoadImage(string src)
@@ -1054,6 +1238,72 @@ public class CardWindow : Window
         return d;
     }
 
+    private void SendUiMouse(string phase, Point pos)
+    {
+        try
+        {
+            var screen = PointToScreen(pos);
+            SetCursorPos((int)Math.Round(screen.X), (int)Math.Round(screen.Y));
+            if (phase == "down") mouse_event(0x0002, 0, 0, 0, UIntPtr.Zero);
+            else if (phase == "up") mouse_event(0x0004, 0, 0, 0, UIntPtr.Zero);
+            else mouse_event(0x0001, 0, 0, 0, UIntPtr.Zero);
+        }
+        catch { }
+    }
+
+    private void PostStylus(string phase, StylusEventArgs e)
+    {
+        if (web == null) return;
+        try
+        {
+            var pos = e.GetPosition(web);
+            if (Card.plugin != "paint")
+            {
+                SendUiMouse(phase, pos);
+                e.Handled = true;
+                return;
+            }
+            bool inCanvas = stylusCanvas.HasValue && stylusCanvas.Value.Contains(pos);
+            if (inCanvas) foreach (var r in stylusExclude) if (r.Contains(pos)) { inCanvas = false; break; }
+            if (!inCanvas)
+            {
+                SendUiMouse(phase, pos);
+                e.Handled = true;
+                return;
+            }
+            var points = e.GetStylusPoints(web);
+            var d = new Dictionary<string, object>();
+            d["phase"] = phase;
+            d["x"] = pos.X;
+            d["y"] = pos.Y;
+            var arr = new List<object>();
+            double firstPressure = 0.5;
+            if (points != null)
+            {
+                foreach (var pt in points)
+                {
+                    var o = new Dictionary<string, object>();
+                    o["x"] = pt.X;
+                    o["y"] = pt.Y;
+                    o["pressure"] = pt.PressureFactor;
+                    arr.Add(o);
+                    firstPressure = pt.PressureFactor;
+                }
+            }
+            if (arr.Count == 0)
+            {
+                var o = new Dictionary<string, object>();
+                o["x"] = pos.X; o["y"] = pos.Y; o["pressure"] = 0.5;
+                arr.Add(o);
+            }
+            d["pressure"] = firstPressure;
+            d["points"] = arr;
+            PostEvent("stylus:input", d);
+            e.Handled = true;
+        }
+        catch { }
+    }
+
     private void PostEvent(string name, object payload)
     {
         if (web == null || web.CoreWebView2 == null) return;
@@ -1061,6 +1311,76 @@ public class CardWindow : Window
         d["event"] = name;
         d["payload"] = payload;
         web.CoreWebView2.PostWebMessageAsJson(json.Serialize(d));
+    }
+
+    public bool ToggleFullscreen()
+    {
+        if (isFullscreen) { ExitFullscreen(); return false; }
+        try
+        {
+            restoreBounds = new Rect(Left, Top, Width, Height);
+            topmostBeforeFullscreen = Topmost;
+            var hwnd = new WindowInteropHelper(this).Handle;
+            var screen = WinForms.Screen.FromHandle(hwnd);
+            var dpi = VisualTreeHelper.GetDpi(this);
+            var area = screen.WorkingArea;
+            applyingBounds = true;
+            Topmost = true;
+            Left = area.Left / Math.Max(0.1, dpi.DpiScaleX);
+            Top = area.Top / Math.Max(0.1, dpi.DpiScaleY);
+            Width = area.Width / Math.Max(0.1, dpi.DpiScaleX);
+            Height = area.Height / Math.Max(0.1, dpi.DpiScaleY);
+            isFullscreen = true;
+            rootGrid.Clip = null;
+            applyingBounds = false;
+            return true;
+        }
+        catch
+        {
+            applyingBounds = false;
+            return false;
+        }
+    }
+
+    public void ExitFullscreen()
+    {
+        if (!isFullscreen) return;
+        isFullscreen = false;
+        applyingBounds = true;
+        try
+        {
+            Left = restoreBounds.X;
+            Top = restoreBounds.Y;
+            Width = Math.Max(240, restoreBounds.Width);
+            Height = Math.Max(160, restoreBounds.Height);
+            Topmost = topmostBeforeFullscreen;
+            rootGrid.Clip = new RectangleGeometry(new Rect(0, 0, Math.Max(1, Width), Math.Max(1, Height)), 14, 14);
+            Show();
+        }
+        catch { }
+        applyingBounds = false;
+    }
+
+    public bool SmallWindow()
+    {
+        if (isFullscreen) ExitFullscreen();
+        applyingBounds = true;
+        try
+        {
+            var w = Math.Min(420, Math.Max(240, SystemParameters.WorkArea.Width - 24));
+            var h = Math.Min(360, Math.Max(160, SystemParameters.WorkArea.Height - 24));
+            var l = Left + (Width - w) / 2;
+            var t = Top + (Height - h) / 2;
+            Left = Math.Max(SystemParameters.WorkArea.Left + 8, Math.Min(l, SystemParameters.WorkArea.Right - w - 8));
+            Top = Math.Max(SystemParameters.WorkArea.Top + 8, Math.Min(t, SystemParameters.WorkArea.Bottom - h - 8));
+            Width = w;
+            Height = h;
+            Topmost = Card.alwaysOnTop;
+        }
+        catch { }
+        applyingBounds = false;
+        SaveBounds();
+        return true;
     }
 
     public void ApplyDesktop(bool on)
@@ -1184,7 +1504,7 @@ public class CardWindow : Window
     private void ResizeTick()
     {
         if (string.IsNullOrEmpty(resizeEdge)) { StopResize(); return; }
-        if ((WinForms.Control.MouseButtons & WinForms.MouseButtons.Left) == 0) { StopResize(); return; }
+        if ((GetAsyncKeyState(0x01) & 0x8000) == 0) { StopResize(); return; }
         var c = WinForms.Cursor.Position;
         var dpi = VisualTreeHelper.GetDpi(this);
         double dx = (c.X - resizeStart.X) / Math.Max(0.1, dpi.DpiScaleX);
@@ -1193,6 +1513,7 @@ public class CardWindow : Window
         if (resizeEdge.Contains("e")) w = Math.Max(240, resizeW + dx);
         if (resizeEdge.Contains("s")) h = Math.Max(160, resizeH + dy);
         if (resizeEdge.Contains("w")) { w = Math.Max(240, resizeW - dx); l = resizeLeft + (resizeW - w); }
+        if (Math.Abs(Left - l) < 0.5 && Math.Abs(Top - t) < 0.5 && Math.Abs(Width - w) < 0.5 && Math.Abs(Height - h) < 0.5) return;
         Left = l; Top = t; Width = w; Height = h;
     }
 
@@ -1206,8 +1527,24 @@ public class CardWindow : Window
 
     private void ResizeMove(Point p) { /* timer drives the resize */ }
 
+    private static Rect? RectFrom(Dictionary<string, object> d)
+    {
+        if (d == null) return null;
+        try
+        {
+            double x = d.ContainsKey("x") ? Convert.ToDouble(d["x"]) : 0;
+            double y = d.ContainsKey("y") ? Convert.ToDouble(d["y"]) : 0;
+            double w = d.ContainsKey("w") ? Convert.ToDouble(d["w"]) : (d.ContainsKey("width") ? Convert.ToDouble(d["width"]) : 0);
+            double h = d.ContainsKey("h") ? Convert.ToDouble(d["h"]) : (d.ContainsKey("height") ? Convert.ToDouble(d["height"]) : 0);
+            if (w <= 0 || h <= 0) return null;
+            return new Rect(x, y, w, h);
+        }
+        catch { return null; }
+    }
+
     private void SaveBounds()
     {
+        if (applyingBounds || isFullscreen) return;
         dragging = false;
         Card.x = Left;
         Card.y = Top;
