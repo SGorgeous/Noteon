@@ -81,10 +81,8 @@
   /* ------------------------------------------------------------------ */
 
   function bindChrome() {
-    $('#winMin').innerHTML = icon('minus', 14);
     $('#winMax').innerHTML = icon('square', 12);
     $('#winClose').innerHTML = icon('close', 14);
-    $('#winMin').addEventListener('click', () => P.minimize());
     $('#winMax').addEventListener('click', () => P.maximize());
     $('#winClose').addEventListener('click', () => P.close());
   }
