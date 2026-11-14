@@ -136,3 +136,65 @@
   color: var(--accent);
   background: var(--accent-soft);
 }
+
+/* 网格平铺：图片直接显示缩略图 */
+.plugin-folder .flist.view-grid {
+  display: block;
+  padding: 6px;
+}
+.plugin-folder .fgrid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(78px, 1fr));
+  gap: 6px;
+  align-content: start;
+}
+.plugin-folder .ftile {
+  min-width: 0;
+  border-radius: 7px;
+  padding: 4px;
+  border: 1px solid transparent;
+  background: var(--hover);
+  cursor: default;
+  user-select: none;
+}
+.plugin-folder .ftile:hover {
+  border-color: var(--border);
+  background: var(--active);
+}
+.plugin-folder .ftile.sel {
+  border-color: var(--accent);
+  background: var(--accent-soft);
+}
+.plugin-folder .ftile-prev {
+  width: 100%;
+  aspect-ratio: 1 / 1;
+  border-radius: 5px;
+  overflow: hidden;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--muted);
+  background: color-mix(in srgb, var(--bg) 70%, #000);
+}
+.plugin-folder .ftile-prev img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+.plugin-folder .ftile-prev svg { width: 28px; height: 28px; }
+.plugin-folder .ftile-prev.icon { background: transparent; }
+.plugin-folder .ftile-name {
+  display: block;
+  margin-top: 4px;
+  font-size: 10.5px;
+  line-height: 1.25;
+  color: var(--fg);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.plugin-folder .fdrop-grid {
+  grid-column: 1 / -1;
+  margin: 4px;
+}

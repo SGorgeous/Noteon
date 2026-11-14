@@ -24,6 +24,8 @@
       let showHidden = !!st.showHidden;
       let sort = ['name', 'mtime', 'size'].includes(st.sort) ? st.sort : 'name';
       let iconSize = ['sm', 'md', 'lg'].includes(st.iconSize) ? st.iconSize : 'md';
+      let view = st.view === 'grid' ? 'grid' : 'list';
+      let thumbUrls = [];
       let entries = [];
       let selectedPath = '';
       let loadToken = 0;
@@ -39,6 +41,7 @@
           <button class="fbtn fsize" data-size="sm" title="小图标">小</button>
           <button class="fbtn fsize" data-size="md" title="中图标">中</button>
           <button class="fbtn fsize" data-size="lg" title="大图标">大</button>
+          <button class="fbtn" data-act="view" title="切换列表 / 网格">${ctx.icon('grid', 13)}</button>
           <button class="fbtn" data-act="more" title="更多">${ctx.icon('dots', 13)}</button>
         </div>
         <div class="flist"></div>`;
@@ -87,11 +90,81 @@
         }
       }
 
+      function clearThumbUrls() {
+        for (const u of thumbUrls) { try { u(); } catch { } }
+        thumbUrls = [];
+      }
+
+      function renderGrid(shown) {
+        const grid = document.createElement('div');
+        grid.className = 'fgrid';
+        for (const ent of shown) {
+          const kind = ent.isDir ? 'dir' : util.kind(ent.name);
+          const tile = document.createElement('div');
+          tile.className = 'ftile' + (ent.path === selectedPath ? ' sel' : '');
+          tile.dataset.path = ent.path;
+          tile.title = ent.name;
+          const preview = document.createElement('div');
+          preview.className = 'ftile-prev';
+          tile.appendChild(preview);
+          const nm = document.createElement('span');
+          nm.className = 'ftile-name';
+          nm.textContent = ent.name;
+          tile.appendChild(nm);
+
+          if (!ent.isDir && kind === 'image') {
+            const ac = api.loadImage(ent.path);
+            ac.then((rec) => {
+              const img = document.createElement('img');
+              img.alt = ent.name;
+              img.src = rec.url;
+              preview.innerHTML = '';
+              preview.appendChild(img);
+              if (rec.revoke) thumbUrls.push(rec.revoke);
+            }).catch(() => {
+              preview.innerHTML = ctx.icon('fileImage', 28);
+            });
+          } else {
+            preview.innerHTML = ctx.icon(ent.isDir ? 'folder' : util.iconFor(ent.name, false), 28);
+            preview.classList.add('icon');
+          }
+
+          tile.addEventListener('click', () => {
+            selectedPath = ent.path;
+            list.querySelectorAll('.frow.sel, .ftile.sel').forEach((el) => el.classList.remove('sel'));
+            tile.classList.add('sel');
+          });
+          tile.addEventListener('dblclick', () => openEntry(ent));
+          tile.addEventListener('contextmenu', (e) => {
+            e.preventDefault();
+            selectedPath = ent.path;
+            list.querySelectorAll('.frow.sel, .ftile.sel').forEach((el) => el.classList.remove('sel'));
+            tile.classList.add('sel');
+            rowMenu(e, ent);
+          });
+          tile.addEventListener('dragstart', (e) => {
+            e.preventDefault();
+            api.dragFile(ent.path);
+          });
+          tile.draggable = true;
+          grid.appendChild(tile);
+        }
+        if (entries.length > shown.length) {
+          const more = document.createElement('div');
+          more.className = 'fdrop fdrop-grid';
+          more.textContent = `只显示前 ${shown.length} 项，共 ${entries.length} 项`;
+          grid.appendChild(more);
+        }
+        list.innerHTML = '';
+        list.appendChild(grid);
+      }
+
       function render() {
         if (!dir) return renderEmpty();
+        clearThumbUrls();
         pathEl.textContent = dir;
         pathEl.title = dir;
-        list.className = 'flist size-' + iconSize;
+        list.className = 'flist size-' + iconSize + ' view-' + view;
         root.querySelectorAll('[data-size]').forEach((b) => b.classList.toggle('on', b.dataset.size === iconSize));
         if (!entries.length) {
           list.innerHTML = `<div class="empty" style="height:100%">
@@ -99,8 +172,14 @@
             <div>这个文件夹是空的<br><span style="opacity:.7">拖文件进来可以复制到此处</span></div>
           </div>`;
         } else {
+          const shown = sortEntries(entries).slice(0, view === 'grid' ? 120 : 800);
+          if (view === 'grid') {
+            renderGrid(shown);
+            updateStatus();
+            return;
+          }
+          clearThumbUrls();
           const frag = document.createDocumentFragment();
-          const shown = sortEntries(entries).slice(0, 800);
           for (const ent of shown) {
             const kind = ent.isDir ? 'dir' : util.kind(ent.name);
             const row = document.createElement('div');
@@ -217,8 +296,15 @@
         api.saveState({ iconSize });
         render();
       }));
+      root.querySelector('[data-act="view"]').addEventListener('click', () => {
+        view = view === 'grid' ? 'list' : 'grid';
+        api.saveState({ view });
+        render();
+      });
       root.querySelector('[data-act="more"]').addEventListener('click', async () => {
         const picked = await api.menu([
+          { id: 'viewlist', label: '列表视图', type: 'checkbox', checked: view === 'list' },
+          { id: 'viewgrid', label: '网格图片预览', type: 'checkbox', checked: view === 'grid' },
           { id: 'hidden', label: '显示隐藏文件', type: 'checkbox', checked: showHidden },
           {
             label: '排序',
@@ -241,7 +327,12 @@
           { id: 'refresh', label: '刷新' },
         ]);
         if (!picked) return;
-        if (picked === 'hidden') { showHidden = !showHidden; api.saveState({ showHidden }); if (dir) load(dir); }
+        if (picked === 'viewlist' || picked === 'viewgrid') {
+          view = picked === 'viewgrid' ? 'grid' : 'list';
+          api.saveState({ view });
+          render();
+        }
+        else if (picked === 'hidden') { showHidden = !showHidden; api.saveState({ showHidden }); if (dir) load(dir); }
         else if (picked.startsWith('sort:')) { sort = picked.slice(5); api.saveState({ sort }); render(); }
         else if (picked.startsWith('size:')) { iconSize = picked.slice(5); api.saveState({ iconSize }); render(); }
         else if (picked === 'change') pickFolder();

@@ -122,6 +122,7 @@
 }
 .plugin-image .thumbs::-webkit-scrollbar { display: none; }
 .plugin-image .thumbs .th {
+  position: relative;
   flex: none;
   width: 36px;
   height: 36px;
@@ -135,6 +136,27 @@
 .plugin-image .thumbs .th img { width: 100%; height: 100%; object-fit: cover; display: block; }
 .plugin-image .thumbs .th:hover { opacity: 0.9; }
 .plugin-image .thumbs .th.on { opacity: 1; border-color: var(--accent); }
+.plugin-image .thumbs .th-del {
+  position: absolute;
+  top: 1px;
+  right: 1px;
+  width: 14px;
+  height: 14px;
+  padding: 0;
+  border-radius: 50%;
+  border: 1px solid rgba(255,255,255,.35);
+  background: rgba(10,13,18,.82);
+  color: #fff;
+  font-size: 11px;
+  line-height: 12px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  opacity: .9;
+  z-index: 2;
+}
+.plugin-image .thumbs .th-del:hover { background: #d9534f; border-color: #d9534f; opacity: 1; }
 
 .plugin-image .bar {
   position: absolute;

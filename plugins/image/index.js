@@ -240,6 +240,27 @@
         }
       }
 
+      function removeItem(i) {
+        if (i < 0 || i >= items.length) return;
+        const removed = items.splice(i, 1)[0];
+        if (removed) {
+          const pending = cache.get(removed.src);
+          cache.delete(removed.src);
+          if (pending) pending.then((r) => { try { r.revoke && r.revoke(); } catch { } }).catch(() => { });
+        }
+        if (!items.length) {
+          index = 0;
+          current = null;
+          showCurrent(true);
+          scheduleSave();
+          return;
+        }
+        if (i < index) index -= 1;
+        if (index >= items.length) index = items.length - 1;
+        showCurrent(true);
+        scheduleSave();
+      }
+
       function rebuildThumbs() {
         if (items.length <= 1) {
           thumbs.classList.add('hidden');
@@ -258,6 +279,19 @@
             index = i;
             showCurrent(false);
           });
+
+          const del = document.createElement('button');
+          del.type = 'button';
+          del.className = 'th-del';
+          del.title = '移除这张';
+          del.textContent = '×';
+          del.addEventListener('pointerdown', (e) => e.stopPropagation());
+          del.addEventListener('click', (e) => {
+            e.stopPropagation();
+            removeItem(i);
+          });
+          el.appendChild(del);
+
           thumbs.appendChild(el);
           acquire(item).then((rec) => { img.src = rec.url; }).catch(() => {
             el.style.background = 'rgba(255,255,255,.08)';
