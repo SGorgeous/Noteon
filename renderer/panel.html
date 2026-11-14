@@ -1,0 +1,242 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; img-src 'self' data: noteon-plugin:; font-src 'self' data:;">
+  <link rel="stylesheet" href="shared/base.css">
+  <link rel="stylesheet" href="panel.css">
+  <title>Noteon</title>
+</head>
+<body>
+  <div class="app">
+    <header class="titlebar">
+      <div class="brand">
+        <span class="logo">N</span>
+        <span class="name">Noteon</span>
+        <span class="ver" id="ver"></span>
+      </div>
+      <div class="winbtns">
+        <button id="winMin" title="最小化"></button>
+        <button id="winMax" title="最大化"></button>
+        <button id="winClose" class="close" title="关闭"></button>
+      </div>
+    </header>
+
+    <div class="shell">
+      <aside class="sidebar">
+        <nav class="nav" id="nav">
+          <button data-tab="cards" class="on"><span class="nic"></span>卡片</button>
+          <button data-tab="theme"><span class="nic"></span>主题</button>
+          <button data-tab="settings"><span class="nic"></span>设置</button>
+          <button data-tab="about"><span class="nic"></span>关于</button>
+        </nav>
+        <div class="side-tip">
+          <b>便签小贴士</b>
+          <p>拖动卡片标题栏移动，拖边角缩放；卡片右上角 <span class="kbd">⋯</span> 可换主题、调透明度、开鼠标穿透。</p>
+        </div>
+        <div class="side-foot">
+          <span>Noteon <span id="sideVer"></span></span>
+          <span class="dot"></span>
+          <span>本地运行</span>
+        </div>
+      </aside>
+
+      <main class="main" id="main">
+        <section class="page on" id="tab-cards">
+          <div class="page-head">
+            <div>
+              <h1>桌面卡片</h1>
+              <p>选一个插件开始。卡片是独立的小窗口，可以置顶、缩放、换主题。</p>
+            </div>
+            <div class="head-actions">
+              <button class="btn ghost" id="hideAll">隐藏全部</button>
+              <button class="btn primary" id="showAll">显示全部</button>
+            </div>
+          </div>
+
+          <div class="plugin-grid" id="pluginGrid"></div>
+
+          <div class="section-head">
+            <h2>已打开的卡片</h2>
+            <span class="count" id="cardCount">0</span>
+            <div class="spacer"></div>
+            <button class="btn ghost small" id="pinAll">全部置顶</button>
+            <button class="btn ghost small" id="unlockAll">解除穿透</button>
+          </div>
+          <div class="card-list" id="cardList"></div>
+        </section>
+
+        <section class="page" id="tab-theme">
+          <div class="page-head">
+            <div>
+              <h1>主题</h1>
+              <p>全局主题实时生效；某张卡片也可以在它自己的 <span class="kbd">⋯</span> 菜单里单独换主题。</p>
+            </div>
+          </div>
+
+          <div class="theme-layout">
+            <div class="theme-left">
+              <h2>预设</h2>
+              <div class="preset-grid" id="presetGrid"></div>
+
+              <h2>微调</h2>
+              <div class="controls">
+                <div class="control-row">
+                  <label>强调色</label>
+                  <div class="control-inline">
+                    <input type="color" id="accentColor" value="#6ea8fe">
+                    <span class="mono" id="accentHex">#6EA8FE</span>
+                  </div>
+                </div>
+                <div class="control-row">
+                  <label>背景色</label>
+                  <div class="control-inline">
+                    <input type="color" id="bgColor" value="#12161d">
+                    <span class="mono" id="bgHex">#12161D</span>
+                  </div>
+                </div>
+                <div class="control-row">
+                  <label>不透明度 <span class="val" id="alphaVal">94%</span></label>
+                  <input type="range" id="alphaRange" min="30" max="100" value="94">
+                </div>
+                <div class="control-row">
+                  <label>圆角 <span class="val" id="radiusVal">14px</span></label>
+                  <input type="range" id="radiusRange" min="0" max="28" value="14">
+                </div>
+                <div class="control-row">
+                  <label>背景模糊 <span class="val" id="blurVal">22px</span></label>
+                  <input type="range" id="blurRange" min="0" max="40" value="22">
+                </div>
+              </div>
+              <div class="row-inline">
+                <button class="btn ghost small" id="resetTheme">恢复该预设</button>
+                <button class="btn ghost small" id="resetOverrides">清除单卡覆盖</button>
+              </div>
+            </div>
+
+            <div class="theme-right">
+              <div class="preview-label">实时预览</div>
+              <div class="preview-wrap">
+                <div class="preview" id="previewCard">
+                  <div class="pv-bar">
+                    <span class="pv-dot"></span>
+                    <span class="pv-title">绘画参考</span>
+                    <span class="pv-btns"><i></i><i></i></span>
+                  </div>
+                  <div class="pv-body">
+                    <div class="pv-img"></div>
+                    <div class="pv-lines"><i style="width:72%"></i><i style="width:46%"></i></div>
+                  </div>
+                </div>
+              </div>
+              <div class="preview-note">窗口无边框、背景透明，卡片本体由主题绘制。</div>
+            </div>
+          </div>
+        </section>
+
+        <section class="page" id="tab-settings">
+          <div class="page-head">
+            <div>
+              <h1>设置</h1>
+              <p>这些是全局行为，改完立即生效。</p>
+            </div>
+          </div>
+
+          <div class="settings-group">
+            <div class="srow">
+              <div class="stext"><b>启动时恢复卡片</b><span>下次启动还原上次打开的卡片与位置</span></div>
+              <label class="switch"><input type="checkbox" id="setRestore"><i></i></label>
+            </div>
+            <div class="srow">
+              <div class="stext"><b>新卡片默认置顶</b><span>新建的卡片默认压在其它窗口上面</span></div>
+              <label class="switch"><input type="checkbox" id="setTop"><i></i></label>
+            </div>
+            <div class="srow">
+              <div class="stext"><b>拖动时吸附</b><span>靠近屏幕边缘或其它卡片时自动对齐</span></div>
+              <label class="switch"><input type="checkbox" id="setSnap"><i></i></label>
+            </div>
+            <div class="srow">
+              <div class="stext"><b>不显示在任务栏</b><span>卡片只出现在桌面上，不占任务栏位置</span></div>
+              <label class="switch"><input type="checkbox" id="setTaskbar"><i></i></label>
+            </div>
+            <div class="srow">
+              <div class="stext"><b>启动时打开控制台</b><span>每次启动 Noteon 都打开这个窗口</span></div>
+              <label class="switch"><input type="checkbox" id="setPanel"><i></i></label>
+            </div>
+          </div>
+
+          <div class="section-head"><h2>数据与插件</h2></div>
+          <div class="settings-group">
+            <div class="srow">
+              <div class="stext"><b>数据目录</b><span class="mono" id="dataDir">—</span></div>
+              <button class="btn ghost small" id="openData">打开</button>
+            </div>
+            <div class="srow">
+              <div class="stext"><b>插件目录</b><span class="mono" id="pluginDir">—</span></div>
+              <div class="row-inline">
+                <button class="btn ghost small" id="openPlugins">打开</button>
+                <button class="btn ghost small" id="reloadPlugins">重新加载</button>
+              </div>
+            </div>
+            <div class="srow">
+              <div class="stext"><b>开发者</b><span>打开开发者工具调试当前面板</span></div>
+              <button class="btn ghost small" id="devtools">DevTools</button>
+            </div>
+          </div>
+
+          <div class="section-head"><h2>危险操作</h2></div>
+          <div class="settings-group">
+            <div class="srow">
+              <div class="stext"><b>关闭全部卡片</b><span>会同时删除这些卡片的记录；便签内容请确认已保存</span></div>
+              <button class="btn danger small" id="closeAll">全部关闭</button>
+            </div>
+          </div>
+        </section>
+
+        <section class="page" id="tab-about">
+          <div class="page-head">
+            <div>
+              <h1>关于 Noteon</h1>
+              <p>一个轻量的桌面便签 / 卡片容器。卡片本身什么都不是，插件决定它能做什么。</p>
+            </div>
+          </div>
+
+          <div class="about-hero">
+            <div class="about-logo">N</div>
+            <div class="about-meta">
+              <div class="about-name">Noteon</div>
+              <div class="about-ver">版本 <span id="aboutVer">0.1.0</span></div>
+              <div class="about-tags">
+                <span class="tag">Electron</span>
+                <span class="tag">无边框透明窗口</span>
+                <span class="tag">插件化卡片</span>
+                <span class="tag">本地数据</span>
+              </div>
+            </div>
+          </div>
+
+          <h2>插件接口</h2>
+          <p class="muted">在 <span class="mono">plugins/&lt;id&gt;/</span> 里放 <span class="mono">plugin.json</span>、<span class="mono">index.js</span>，需要样式再加 <span class="mono">style.css</span>。渲染进程通过 <span class="mono">ctx.api</span> 拿到文件、窗口、卡片能力。</p>
+          <pre class="code"><code>Noteon.define({
+  id: 'hello',
+  mount(ctx) {
+    const { root, api } = ctx;
+    root.innerHTML = '&lt;h1&gt;你好&lt;/h1&gt;';
+    // api.readDir / api.openCard / api.saveState / api.toast ...
+    return { unmount() {} };
+  }
+});</code></pre>
+          <div class="row-inline">
+            <button class="btn ghost" id="openDocs">打开文档目录</button>
+            <button class="btn ghost" id="openPlugins2">打开插件目录</button>
+          </div>
+        </section>
+      </main>
+    </div>
+  </div>
+
+  <script src="shared/icons.js"></script>
+  <script src="shared/themes.js"></script>
+  <script src="panel.js"></script>
+</body>
+</html>

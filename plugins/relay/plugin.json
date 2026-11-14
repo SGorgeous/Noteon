@@ -1,0 +1,13 @@
+{
+  "id": "relay",
+  "name": "文件中转",
+  "description": "把文件先丢进这里，再拖到任何地方；也可以当快捷路径收集盒。",
+  "version": "1.0.0",
+  "icon": "icon.svg",
+  "entry": "index.js",
+  "style": "style.css",
+  "defaultSize": [380, 420],
+  "minSize": [280, 220],
+  "order": 60,
+  "accent": "#ff9f5a"
+}

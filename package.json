@@ -1,0 +1,14 @@
+{
+  "name": "noteon",
+  "productName": "Noteon",
+  "version": "0.1.0",
+  "description": "Noteon — 桌面悬浮便签 / 卡片容器",
+  "main": "main/main.js",
+  "private": true,
+  "scripts": {
+    "start": "runtime\\electron\\electron.exe .",
+    "smoke": "runtime\\electron\\electron.exe . --smoke",
+    "demo": "runtime\\electron\\electron.exe . --demo"
+  },
+  "author": "acminerva"
+}

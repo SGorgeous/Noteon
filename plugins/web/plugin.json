@@ -1,0 +1,13 @@
+{
+  "id": "web",
+  "name": "网页",
+  "description": "贴一个网页或本地 HTML，带地址栏和前进后退。",
+  "version": "1.0.0",
+  "icon": "icon.svg",
+  "entry": "index.js",
+  "style": "style.css",
+  "defaultSize": [720, 540],
+  "minSize": [420, 300],
+  "order": 50,
+  "accent": "#3ddc97"
+}

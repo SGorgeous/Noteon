@@ -1,0 +1,39 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline' noteon-plugin:; style-src 'self' 'unsafe-inline' noteon-plugin:; img-src 'self' data: blob: noteon-file: noteon-plugin:; media-src 'self' data: blob: noteon-file:; font-src 'self' data:; connect-src 'self' noteon-file:;">
+  <link rel="stylesheet" href="shared/base.css">
+  <link rel="stylesheet" href="card.css">
+  <title>Noteon</title>
+</head>
+<body class="card">
+  <div class="frame" id="frame">
+    <header class="bar" id="bar">
+      <span class="picon" id="picon"></span>
+      <span class="title" id="title" spellcheck="false"></span>
+      <div class="tools">
+        <button class="tb" id="btnPin" title="置顶"></button>
+        <button class="tb" id="btnMore" title="卡片设置"></button>
+        <button class="tb danger" id="btnClose" title="关闭卡片"></button>
+      </div>
+    </header>
+    <main class="host" id="host"></main>
+    <footer class="status hidden" id="status"><span id="statusText"></span></footer>
+  </div>
+
+  <div class="handles">
+    <div class="rh" data-edge="s"></div>
+    <div class="rh" data-edge="e"></div>
+    <div class="rh" data-edge="w"></div>
+    <div class="rh" data-edge="se"></div>
+    <div class="rh" data-edge="sw"></div>
+  </div>
+
+  <div class="toast" id="toast"></div>
+
+  <script src="shared/icons.js"></script>
+  <script src="shared/themes.js"></script>
+  <script src="card.js"></script>
+</body>
+</html>

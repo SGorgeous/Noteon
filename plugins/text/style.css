@@ -1,0 +1,88 @@
+.plugin-text .tbar {
+  flex: 0 0 32px;
+  height: 32px;
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  padding: 0 8px 0 12px;
+  border-bottom: 1px solid var(--border);
+  color: var(--muted);
+}
+.plugin-text .tname {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 60%;
+  opacity: 0.85;
+}
+.plugin-text .tdot {
+  width: 5px;
+  height: 5px;
+  border-radius: 50%;
+  background: var(--accent);
+  margin-left: 6px;
+  opacity: 0;
+  transition: opacity 0.2s ease;
+}
+.plugin-text .tdot.on { opacity: 1; }
+.plugin-text .tspacer { flex: 1; }
+.plugin-text .tbtn {
+  height: 22px;
+  min-width: 22px;
+  padding: 0 6px;
+  border-radius: 5px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  font-size: 10.5px;
+  color: var(--muted);
+  transition: background 0.12s ease, color 0.12s ease;
+}
+.plugin-text .tbtn:hover { background: var(--hover); color: var(--fg); }
+.plugin-text .tbtn.on { background: var(--accent-soft); color: var(--accent); }
+.plugin-text .tbody { flex: 1; min-height: 0; display: flex; }
+.plugin-text .tarea {
+  flex: 1;
+  width: 100%;
+  border: 0;
+  outline: none;
+  resize: none;
+  background: transparent;
+  color: var(--fg);
+  padding: 8px 13px 12px;
+  font-family: var(--font-mono);
+  font-size: 12.5px;
+  line-height: 1.65;
+  tab-size: 2;
+  user-select: text;
+  caret-color: var(--accent);
+}
+.plugin-text .tarea::placeholder { color: var(--muted); opacity: 0.55; }
+.plugin-text .tfoot {
+  flex: 0 0 22px;
+  height: 22px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 0 12px;
+  border-top: 1px solid var(--border);
+  font-size: 10px;
+  color: var(--muted);
+  white-space: nowrap;
+  overflow: hidden;
+}
+.plugin-text .tfoot .path {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  direction: rtl;
+  text-align: left;
+  opacity: 0.75;
+}
+.plugin-text .linkbtn {
+  color: var(--accent);
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}

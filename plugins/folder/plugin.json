@@ -1,0 +1,13 @@
+{
+  "id": "folder",
+  "name": "文件夹映射",
+  "description": "把一个文件夹钉在桌面上，点开文件、拖入文件，像迷你资源管理器。",
+  "version": "1.0.0",
+  "icon": "icon.svg",
+  "entry": "index.js",
+  "style": "style.css",
+  "defaultSize": [400, 480],
+  "minSize": [280, 240],
+  "order": 40,
+  "accent": "#5b9dff"
+}

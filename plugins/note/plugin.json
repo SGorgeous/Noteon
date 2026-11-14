@@ -1,0 +1,13 @@
+{
+  "id": "note",
+  "name": "便签",
+  "description": "随手写点东西，支持 Markdown 预览，自动保存。",
+  "version": "1.0.0",
+  "icon": "icon.svg",
+  "entry": "index.js",
+  "style": "style.css",
+  "defaultSize": [340, 400],
+  "minSize": [240, 200],
+  "order": 10,
+  "accent": "#f0b429"
+}

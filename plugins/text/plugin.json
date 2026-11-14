@@ -1,0 +1,13 @@
+{
+  "id": "text",
+  "name": "文本",
+  "description": "预览 / 编辑 txt、md、代码等纯文本，拖进来就能看。",
+  "version": "1.0.0",
+  "icon": "icon.svg",
+  "entry": "index.js",
+  "style": "style.css",
+  "defaultSize": [560, 480],
+  "minSize": [320, 220],
+  "order": 20,
+  "accent": "#4aa8ff"
+}
