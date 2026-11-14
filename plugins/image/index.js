@@ -435,16 +435,9 @@
         if (!hex) return;
         lastColor = hex;
         updateStageClass();
-        const now = Date.now();
-        if (now - lastRightAt < 420) {
-          const plain = hex.replace('#', '');
-          api.copy(plain);
-          api.toast('已复制颜色值 ' + plain);
-          lastRightAt = 0;
-        } else {
-          lastRightAt = now;
-          api.toast('取色 ' + hex);
-        }
+        const plain = hex.replace('#', '');
+        api.copy(plain);
+        api.toast('已复制颜色 ' + hex);
         scheduleSave();
       });
 
