@@ -357,7 +357,7 @@ public class CardWindow : Window
             if (!initializing && !resizing && !applyingBounds && !isFullscreen) SaveBounds();
         };
         Closed += (s, e) => { if (resizeTimer != null) resizeTimer.Stop(); DisposeWebViews(); app.Remove(this); };
-        Deactivated += (s, e) => { if (isFullscreen) ExitFullscreen(); if (Card.desktop) SendToBottom(); };
+        Deactivated += (s, e) => { if (isFullscreen) ExitFullscreen(); };
     }
 
     public void StopWebMedia()
@@ -437,7 +437,7 @@ public class CardWindow : Window
             core.Settings.IsWebMessageEnabled = true;
             try { await core.CallDevToolsProtocolMethodAsync("Network.enable", "{}"); await core.CallDevToolsProtocolMethodAsync("Network.setCacheDisabled", "{\"cacheDisabled\":true}"); } catch { }
             core.WebMessageReceived += OnWebMessage;
-            core.NavigationCompleted += (s2, ev) => { if (loadingOverlay != null) loadingOverlay.Visibility = Visibility.Collapsed; if (Card.desktop) SendToBottom(); PostWebState(ev.IsSuccess ? (CoreWebView2WebErrorStatus?)null : ev.WebErrorStatus, false); };
+            core.NavigationCompleted += (s2, ev) => { if (loadingOverlay != null) loadingOverlay.Visibility = Visibility.Collapsed; PostWebState(ev.IsSuccess ? (CoreWebView2WebErrorStatus?)null : ev.WebErrorStatus, false); };
             await core.AddScriptToExecuteOnDocumentCreatedAsync(app.BridgeJs);
             core.Navigate("https://noteon.local/renderer/card.html?card=" + Uri.EscapeDataString(Card.id) + "&v=" + DateTime.UtcNow.Ticks);
             if (Card.desktop) ApplyDesktop(true);
@@ -1486,7 +1486,6 @@ public class CardWindow : Window
             Topmost = false;
             ShowInTaskbar = false;
             Show();
-            Dispatcher.BeginInvoke(new Action(SendToBottom), System.Windows.Threading.DispatcherPriority.Loaded);
         }
         else
         {
