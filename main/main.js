@@ -85,7 +85,7 @@ function syncShellMenu() {
     store.touch();
   }
   if (store.settings.contextMenu) {
-    try { shellMenu.install(shellMenuOptions()); }
+    try { if (!shellMenu.isCurrent(shellMenuOptions())) shellMenu.install(shellMenuOptions()); }
     catch (err) { console.warn('[shellmenu] 安装失败:', err.message); }
   }
 }
@@ -453,6 +453,12 @@ function registerIpc() {
     return { ok: true };
   });
 
+  ipcMain.handle('card:hide', (event) => {
+    const found = cardFromEvent(event);
+    if (!found) return false;
+    return cards.hide(found.id);
+  });
+
   ipcMain.handle('card:close', (event) => {
     const found = cardFromEvent(event);
     if (!found) return false;
@@ -651,8 +657,9 @@ function registerIpc() {
 
   ipcMain.handle('shellmenu:set', (_e, enabled) => {
     try {
-      if (enabled) shellMenu.install(shellMenuOptions());
-      else shellMenu.uninstall();
+      if (enabled) {
+        if (!shellMenu.isCurrent(shellMenuOptions())) shellMenu.install(shellMenuOptions());
+      } else shellMenu.uninstall();
       store.settings.contextMenu = !!enabled;
       store.touch();
       return { ok: true, enabled: !!enabled };
@@ -1217,6 +1224,21 @@ async function runSmoke() {
   }
   console.log('[smoke] panel-actions', JSON.stringify(panelActions));
 
+  // 卡片隐藏按钮自测
+  const hideTest = {};
+  try {
+    const w = cards.getById(created[0].id);
+    await w.webContents.executeJavaScript(`document.querySelector('#btnHide').click()`);
+    await wait(500);
+    hideTest.hidden = !w.isVisible();
+    cards.show(created[0].id);
+    await wait(600);
+    hideTest.shown = w.isVisible();
+  } catch (err) {
+    hideTest.error = err.message;
+  }
+  console.log('[smoke] hide', JSON.stringify(hideTest));
+
   // 交互自测：拖动 / 缩放 / 置顶按钮
   const interaction = {};
   try {
@@ -1259,6 +1281,7 @@ async function runSmoke() {
   const report = {
     interaction,
     panelActions,
+    hideTest,
     shots,
     console: consoleLines.slice(0, 300),
     cards: cards.listCards(),

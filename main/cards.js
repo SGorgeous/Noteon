@@ -254,6 +254,12 @@ class CardManager {
     this.broadcast('board:changed', this.listCards());
   }
 
+  hide(id) {
+    const win = this.windows.get(id);
+    if (win && !win.isDestroyed()) win.hide();
+    return true;
+  }
+
   hideAll() {
     for (const win of this.windows.values()) win.hide();
   }

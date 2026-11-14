@@ -24,6 +24,7 @@ const api = {
   updateCard: (patch) => ipcRenderer.invoke('card:update', patch),
   saveState: (patch) => ipcRenderer.invoke('card:state', patch),
   close: () => ipcRenderer.invoke('card:close'),
+  hide: () => ipcRenderer.invoke('card:hide'),
   openCard: (opts) => ipcRenderer.invoke('card:create', opts),
   openFile: (p) => ipcRenderer.invoke('card:open-file', p),
   listCards: () => ipcRenderer.invoke('card:list'),

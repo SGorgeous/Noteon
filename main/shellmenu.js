@@ -11,9 +11,19 @@ const PLUGINS = [
   ['relay', '文件中转'],
 ];
 
+const SLASH = String.fromCharCode(92);
 const ROOTS = [
-  'HKCU\\Software\\Classes\\DesktopBackground\\Shell\\Noteon',
-  'HKCU\\Software\\Classes\\Directory\\Background\\shell\\Noteon',
+  `HKCU${SLASH}Software${SLASH}Classes${SLASH}DesktopBackground${SLASH}Shell${SLASH}NoteonCards`,
+  `HKCU${SLASH}Software${SLASH}Classes${SLASH}Directory${SLASH}Background${SLASH}shell${SLASH}NoteonCards`,
+];
+
+const LEGACY_ROOTS = [
+  `HKCU${SLASH}Software${SLASH}Classes${SLASH}DesktopBackground${SLASH}Shell${SLASH}Noteon`,
+  `HKCU${SLASH}Software${SLASH}Classes${SLASH}DesktopBackground${SLASH}Shell${SLASH}NoteonMenu`,
+  `HKCU${SLASH}Software${SLASH}Classes${SLASH}DesktopBackground${SLASH}Shell${SLASH}NoteonCreate`,
+  `HKCU${SLASH}Software${SLASH}Classes${SLASH}Directory${SLASH}Background${SLASH}shell${SLASH}Noteon`,
+  `HKCU${SLASH}Software${SLASH}Classes${SLASH}Directory${SLASH}Background${SLASH}shell${SLASH}NoteonMenu`,
+  `HKCU${SLASH}Software${SLASH}Classes${SLASH}Directory${SLASH}Background${SLASH}shell${SLASH}NoteonCreate`,
 ];
 
 function runReg(args, ignoreError = false) {
@@ -34,25 +44,40 @@ function commandFor(plugin, opts) {
 }
 
 function install(opts) {
+  const BS = String.fromCharCode(92);
+  const target = opts.packaged ? opts.execPath : opts.appPath;
+  for (const root of LEGACY_ROOTS) runReg(['delete', root, '/f'], true);
   for (const root of ROOTS) {
     runReg(['delete', root, '/f'], true);
-    runReg(['add', root, '/ve', '/d', '在 Noteon 新建', '/f']);
     runReg(['add', root, '/v', 'MUIVerb', '/d', '在 Noteon 新建', '/f']);
     runReg(['add', root, '/v', 'Icon', '/d', `"${opts.icon}"`, '/f']);
     runReg(['add', root, '/v', 'Position', '/d', 'Top', '/f']);
-    runReg(['add', root, '/v', 'SubCommands', '/d', PLUGINS.map(([id]) => '0' + id).join(';'), '/f']);
-    for (const [id, label] of PLUGINS) {
-      const key = `${root}\\shell\\0${id}`;
-      runReg(['add', key, '/ve', '/d', label, '/f']);
+    // 空 SubCommands 表示使用本键下的 shell 子键
+    runReg(['add', root, '/v', 'SubCommands', '/t', 'REG_SZ', '/d', '', '/f']);
+    runReg(['add', root, '/v', 'InstallPath', '/d', target, '/f']);
+    for (let idx = 0; idx < PLUGINS.length; idx++) {
+      const [id, label] = PLUGINS[idx];
+      const key = root + BS + 'shell' + BS + String(idx + 1).padStart(2, '0') + id;
       runReg(['add', key, '/v', 'MUIVerb', '/d', label, '/f']);
-      runReg(['add', `${key}\\command`, '/ve', '/d', commandFor(id, opts), '/f']);
+      runReg(['add', key + BS + 'command', '/ve', '/d', commandFor(id, opts), '/f']);
     }
   }
   return true;
 }
 
+function isCurrent(opts) {
+  try {
+    const target = opts.packaged ? opts.execPath : opts.appPath;
+    const out = execFileSync('reg.exe', ['query', ROOTS[0], '/v', 'InstallPath'], { windowsHide: true, encoding: 'utf8' });
+    return out.includes(target);
+  } catch {
+    return false;
+  }
+}
+
 function uninstall() {
   for (const root of ROOTS) runReg(['delete', root, '/f'], true);
+  for (const root of LEGACY_ROOTS) runReg(['delete', root, '/f'], true);
   return true;
 }
 
@@ -60,4 +85,4 @@ function isInstalled() {
   return ROOTS.every((root) => runReg(['query', root], true));
 }
 
-module.exports = { install, uninstall, isInstalled, PLUGINS };
+module.exports = { install, uninstall, isInstalled, isCurrent, PLUGINS };

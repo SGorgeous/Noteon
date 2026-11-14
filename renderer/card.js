@@ -9,6 +9,7 @@
   const toastEl = $('#toast');
   const statusEl = $('#status');
   const statusText = $('#statusText');
+  const btnHide = $('#btnHide');
   const btnPin = $('#btnPin');
   const btnMore = $('#btnMore');
   const btnClose = $('#btnClose');
@@ -164,6 +165,8 @@
   /* ------------------------------------------------------------------ */
 
   function renderChrome() {
+    btnHide.innerHTML = window.NI.icon('eyeOff', 14);
+    btnHide.title = '隐藏卡片（从托盘或控制台恢复）';
     btnPin.innerHTML = window.NI.icon('pin', 14);
     btnMore.innerHTML = window.NI.icon('dots', 14);
     btnClose.innerHTML = window.NI.icon('close', 14);
@@ -272,6 +275,7 @@
       applyTheme();
       toast(card.alwaysOnTop ? '已置顶' : '已取消置顶');
     });
+    btnHide.addEventListener('click', () => window.noteon.hide());
     btnClose.addEventListener('click', () => window.noteon.close());
     btnMore.addEventListener('click', openCardMenu);
 
@@ -407,6 +411,14 @@
         e.preventDefault();
         window.noteon.close();
       }
+      if (mod && e.key.toLowerCase() === 'h') {
+        const tag = (e.target.tagName || '').toLowerCase();
+        const typing = tag === 'input' || tag === 'textarea' || e.target.isContentEditable;
+        if (!typing) {
+          e.preventDefault();
+          window.noteon.hide();
+        }
+      }
       if (e.key === 'Escape' && titleEl.isContentEditable) titleEl.blur();
     });
   }
@@ -430,6 +442,7 @@
         return window.noteon.updateCard({ title: text });
       },
       close() { return window.noteon.close(); },
+      hide() { return window.noteon.hide(); },
       openCard(opts) { return window.noteon.openCard(opts); },
       openFile(p) { return window.noteon.openFile(p); },
       showCard(id) { return window.noteon.showCard(id); },

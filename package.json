@@ -1,7 +1,7 @@
 {
   "name": "noteon",
   "productName": "Noteon",
-  "version": "0.1.1",
+  "version": "0.1.2",
   "description": "Noteon — 桌面悬浮便签 / 卡片容器",
   "main": "main/main.js",
   "private": true,

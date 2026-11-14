@@ -44,6 +44,7 @@
     dots: '<circle cx="12" cy="5.5" r="1.3" fill="currentColor" stroke="none"/><circle cx="12" cy="12" r="1.3" fill="currentColor" stroke="none"/><circle cx="12" cy="18.5" r="1.3" fill="currentColor" stroke="none"/>',
     monitor: '<rect x="3.5" y="4.5" width="17" height="12" rx="1.8"/><path d="M9 20h6M12 16.5V20"/>',
     eye: '<path d="M2.8 12S6.2 5.8 12 5.8 21.2 12 21.2 12 17.8 18.2 12 18.2 2.8 12 2.8 12z"/><circle cx="12" cy="12" r="2.6"/>',
+    eyeOff: '<path d="M3.5 3.5l17 17"/><path d="M10.6 5.9A9.7 9.7 0 0 1 12 5.8c5.8 0 9.2 6.2 9.2 6.2a17 17 0 0 1-2.7 3.5"/><path d="M6.5 7.6A17 17 0 0 0 2.8 12s3.4 6.2 9.2 6.2c1.1 0 2.2-.2 3.2-.6"/><path d="M9.9 9.9a3 3 0 0 0 4.2 4.2"/>',
     link: '<path d="M10 14a4 4 0 0 0 5.7 0l2.8-2.8a4 4 0 0 0-5.7-5.7L11.5 7"/><path d="M14 10a4 4 0 0 0-5.7 0L5.5 12.8a4 4 0 0 0 5.7 5.7l1.3-1.3"/>',
   };
 
