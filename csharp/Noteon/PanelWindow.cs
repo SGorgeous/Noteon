@@ -23,6 +23,7 @@ public class PanelWindow : Window
     private DateTime shownAt = DateTime.MinValue;
     private Rect panelRestore;
     private bool panelMaximized;
+    private bool pendingNewCard;
 
     private readonly AppHost app;
     private WebView2CompositionControl web;
@@ -73,6 +74,7 @@ public class PanelWindow : Window
             core.Settings.IsWebMessageEnabled = true;
             core.WebMessageReceived += OnWebMessage;
             await core.AddScriptToExecuteOnDocumentCreatedAsync(app.BridgeJs);
+            core.NavigationCompleted += (s2, ev) => { if (pendingNewCard) { pendingNewCard = false; PostPanelEvent("panel:new"); } };
             core.Navigate("https://noteon.local/renderer/panel.html?v=" + DateTime.UtcNow.Ticks);
         }
         catch (Exception ex)
@@ -90,6 +92,28 @@ public class PanelWindow : Window
             int ex = GetWindowLong(hwnd, -20);
             ex = on ? (ex | 0x20) : (ex & ~0x20);
             SetWindowLong(hwnd, -20, ex);
+        }
+        catch { }
+    }
+
+    public void FocusNewCard()
+    {
+        pendingNewCard = true;
+        ShowPanel();
+        if (web != null && web.CoreWebView2 != null)
+        {
+            pendingNewCard = false;
+            PostPanelEvent("panel:new");
+        }
+    }
+
+    private void PostPanelEvent(string name)
+    {
+        try
+        {
+            var d = new Dictionary<string, object>();
+            d["event"] = name;
+            if (web != null && web.CoreWebView2 != null) web.CoreWebView2.PostWebMessageAsJson(json.Serialize(d));
         }
         catch { }
     }

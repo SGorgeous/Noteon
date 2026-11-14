@@ -198,6 +198,16 @@ public class AppHost
         Windows[0].Activate();
     }
 
+    public void OpenNewCardPanel()
+    {
+        if (Panel == null)
+        {
+            Panel = new PanelWindow(this);
+            Panel.Closed += (s, e) => { Panel = null; };
+        }
+        Panel.FocusNewCard();
+    }
+
     public PanelWindow OpenPanel()
     {
         if (Panel == null)

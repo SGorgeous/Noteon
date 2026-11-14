@@ -40,6 +40,12 @@
       toast('初始化失败：' + err.message, true);
     }
 
+    P.on('panel:new', () => {
+      const tab = document.querySelector('[data-tab="cards"]');
+      if (tab) tab.click();
+      const grid = $('#pluginGrid');
+      if (grid) grid.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    });
     P.on('board:changed', scheduleRefresh);
     P.on('card:updated', scheduleRefresh);
     P.on('theme:changed', (payload) => {

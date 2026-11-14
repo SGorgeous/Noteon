@@ -108,12 +108,15 @@ class Program
             {
                 if (msg == 0x0312)
                 {
-                    host.ShowAndTile();
+                    var id = wParam.ToInt32();
+                    if (id == 1) host.ShowAndTile();
+                    else if (id == 2) host.OpenNewCardPanel();
                     handled = true;
                 }
                 return IntPtr.Zero;
             });
             RegisterHotKey(hotkey.Handle, 1, 0x0002 | 0x0001, 0x4E);
+            RegisterHotKey(hotkey.Handle, 2, 0x0002 | 0x0001 | 0x0004, 0x4E);
         }
         catch { }
 
@@ -145,6 +148,9 @@ class Program
             tray.Text = "Noteon";
             tray.Visible = true;
             var menu = new WinForms.ContextMenuStrip();
+            var newItem = new WinForms.ToolStripMenuItem("新建卡片…");
+            newItem.Click += (s, e) => host.OpenNewCardPanel();
+            menu.Items.Add(newItem);
             var openItem = new WinForms.ToolStripMenuItem("控制台");
             openItem.Click += (s, e) => { host.OpenPanel(); };
             var exitItem = new WinForms.ToolStripMenuItem("退出 Noteon");
