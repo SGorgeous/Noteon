@@ -171,12 +171,17 @@ class Program
         if (tray != null) tray.Dispose();
     }
 
+    static string LaunchDir()
+    {
+        return Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "Noteon", "launch");
+    }
+
     static void WriteLaunch(string baseDir, string plugin, string path)
     {
         try
         {
             if (string.IsNullOrEmpty(plugin)) return;
-            var dir = Path.Combine(baseDir, "data");
+            var dir = LaunchDir();
             Directory.CreateDirectory(dir);
             var d = new Dictionary<string, object>();
             d["plugin"] = plugin;
@@ -191,7 +196,14 @@ class Program
     {
         try
         {
-            foreach (var file in Directory.GetFiles(dataDir, "launch-*.json"))
+            var dirs = new List<string> { LaunchDir() };
+            if (!string.Equals(dataDir, LaunchDir(), StringComparison.OrdinalIgnoreCase)) dirs.Add(dataDir);
+            var files = new List<string>();
+            foreach (var dir in dirs)
+            {
+                try { if (Directory.Exists(dir)) files.AddRange(Directory.GetFiles(dir, "launch-*.json")); } catch { }
+            }
+            foreach (var file in files)
             {
                 try
                 {

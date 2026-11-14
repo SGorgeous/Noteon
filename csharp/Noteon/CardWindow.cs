@@ -216,6 +216,8 @@ public class CardWindow : Window
     [DllImport("user32.dll")] private static extern bool ReleaseCapture();
     [DllImport("user32.dll")] private static extern IntPtr SendMessage(IntPtr hWnd, uint msg, IntPtr wParam, IntPtr lParam);
     [DllImport("user32.dll")] private static extern short GetAsyncKeyState(int vKey);
+    [DllImport("user32.dll")] private static extern int GetWindowLong(IntPtr hWnd, int index);
+    [DllImport("user32.dll")] private static extern int SetWindowLong(IntPtr hWnd, int index, int value);
 
     private readonly AppHost app;
     public Card Card { get; private set; }
@@ -245,6 +247,7 @@ public class CardWindow : Window
     private bool applyingBounds;
     private Rect restoreBounds;
     private bool topmostBeforeFullscreen;
+    private double cardOpacity = 1;
     private Rect? stylusCanvas;
     private List<Rect> stylusExclude = new List<Rect>();
     private Border loadingOverlay;
@@ -717,6 +720,12 @@ public class CardWindow : Window
                 foreach (var kv in patch) Card.state[kv.Key] = kv.Value;
             }
             app.Store.Save();
+            return true;
+        }
+        if (method == "setCardOpacity")
+        {
+            cardOpacity = args.Length > 0 ? Convert.ToDouble(args[0]) : 1;
+            ApplyClickThrough(cardOpacity <= 0.01);
             return true;
         }
         if (method == "setStylusArea")
@@ -1595,6 +1604,19 @@ public class CardWindow : Window
         }
         if (bestX <= threshold) Left = bestLeft;
         if (bestY <= threshold) Top = bestTop;
+    }
+
+    private void ApplyClickThrough(bool transparent)
+    {
+        try
+        {
+            var hwnd = new WindowInteropHelper(this).Handle;
+            if (hwnd == IntPtr.Zero) return;
+            int ex = GetWindowLong(hwnd, -20);
+            ex = transparent ? (ex | 0x20) : (ex & ~0x20);
+            SetWindowLong(hwnd, -20, ex);
+        }
+        catch { }
     }
 
     private void SaveBounds()

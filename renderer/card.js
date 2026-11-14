@@ -205,17 +205,20 @@ if (window.chrome && window.chrome.webview) document.body.classList.add('csharp-
   function applyTheme() {
     theme = window.NoteonTheme.resolve(info.theme.themeId, info.theme.customTheme, card);
     // WebView2 无法真实采样桌面，高透明会让底下文字直接透出来；默认提高到接近不透明。
+    let visualAlpha = 1;
     if (document.body.classList.contains('csharp-host')) {
       // 不透明度作用于整张卡片，而不是只让背景变透明。
       // 这样低不透明度时文字不会单独悬在桌面背景上。
       const customAlpha = info.theme.customTheme && Number.isFinite(info.theme.customTheme.alpha);
       if (!customAlpha && !Number.isFinite(card.alpha)) theme.alpha = 1;
-      document.documentElement.style.setProperty('--card-opacity', theme.alpha);
+      visualAlpha = theme.alpha;
+      document.documentElement.style.setProperty('--card-opacity', visualAlpha);
       theme.alpha = 1;
     } else {
       document.documentElement.style.setProperty('--card-opacity', 1);
     }
     window.NoteonTheme.apply(document.documentElement, theme);
+    if (window.noteon.setCardOpacity) { try { window.noteon.setCardOpacity(visualAlpha); } catch (err) { } }
     btnPin.classList.toggle('active', !!card.alwaysOnTop);
     btnPin.title = card.alwaysOnTop ? '已置顶（点击取消）' : '置顶窗口';
     for (const fn of themeHandlers) {
@@ -652,6 +655,7 @@ if (window.chrome && window.chrome.webview) document.body.classList.add('csharp-
       openUrl(u) { return window.noteon.openUrl(u); },
       copy(text) { return window.noteon.copyText(text); },
       setStylusArea(area) { return window.noteon.setStylusArea(area); },
+      setCardOpacity(alpha) { return window.noteon.setCardOpacity(alpha); },
       readClipboardImage() { return window.noteon.readClipboardImage(); },
       writeClipboardImage(data) { return window.noteon.writeClipboardImage(data); },
       readClipboardText() { return window.noteon.readClipboardText(); },

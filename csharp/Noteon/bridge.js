@@ -92,6 +92,7 @@
     dragFile: function (p) { return call('dragFile', [p]); },
     fullscreen: function () { return call('fullscreen'); },
     setStylusArea: function (area) { return call('setStylusArea', [area]); },
+    setCardOpacity: function (alpha) { return call('setCardOpacity', [alpha]); },
     smallWindow: function () { return call('smallWindow'); },
     openPath: function (p) { return call('openPath', [p]); },
     openDevTools: function () { return call('openDevTools'); },
