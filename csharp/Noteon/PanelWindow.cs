@@ -71,7 +71,7 @@ public class PanelWindow : Window
             core.Settings.IsWebMessageEnabled = true;
             core.WebMessageReceived += OnWebMessage;
             await core.AddScriptToExecuteOnDocumentCreatedAsync(app.BridgeJs);
-            core.Navigate("https://noteon.local/renderer/panel.html");
+            core.Navigate("https://noteon.local/renderer/panel.html?v=" + DateTime.UtcNow.Ticks);
         }
         catch (Exception ex)
         {
