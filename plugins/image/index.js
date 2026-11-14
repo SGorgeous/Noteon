@@ -436,8 +436,23 @@
         lastColor = hex;
         updateStageClass();
         const plain = hex.replace('#', '');
-        api.copy(plain);
-        api.toast('已复制颜色 ' + hex);
+        (async () => {
+          let copied = false;
+          try {
+            const ok = await api.copy(plain);
+            if (ok) {
+              const back = await api.readClipboardText();
+              copied = String(back || '').trim() === plain;
+            }
+          } catch { }
+          if (!copied) {
+            try {
+              await navigator.clipboard.writeText(plain);
+              copied = true;
+            } catch { }
+          }
+          api.toast(copied ? '已复制颜色 ' + hex : '复制失败，请重试');
+        })();
         scheduleSave();
       });
 

@@ -842,7 +842,7 @@ public class CardWindow : Window
             return true;
         }
         if (method == "openDevTools") { web.CoreWebView2.OpenDevToolsWindow(); return true; }
-        if (method == "copy" || method == "writeClipboardText") { Clipboard.SetText(args.Length > 0 ? Convert.ToString(args[0]) : ""); return true; }
+        if (method == "copy" || method == "writeClipboardText") { return SetClipboardText(args.Length > 0 ? Convert.ToString(args[0]) : ""); }
         if (method == "readClipboardText") { try { return Clipboard.ContainsText() ? Clipboard.GetText() : ""; } catch { return ""; } }
         if (method == "writeClipboardImage")
         {
@@ -1094,6 +1094,28 @@ public class CardWindow : Window
             bmp.Freeze();
             return bmp;
         }
+    }
+
+    private static bool SetClipboardText(string text)
+    {
+        for (int i = 0; i < 5; i++)
+        {
+            try
+            {
+                Clipboard.SetText(text ?? "");
+                return true;
+            }
+            catch
+            {
+                try { Thread.Sleep(35); } catch { }
+            }
+        }
+        try
+        {
+            Clipboard.SetDataObject(text ?? "", true);
+            return true;
+        }
+        catch { return false; }
     }
 
     private static Dictionary<string, object> LoadImage(string src)
