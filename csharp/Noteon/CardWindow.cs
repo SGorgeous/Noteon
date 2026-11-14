@@ -217,6 +217,8 @@ public class CardWindow : Window
     [DllImport("user32.dll")] private static extern IntPtr SendMessage(IntPtr hWnd, uint msg, IntPtr wParam, IntPtr lParam);
     [DllImport("user32.dll")] private static extern short GetAsyncKeyState(int vKey);
     [DllImport("user32.dll")] private static extern int GetWindowLong(IntPtr hWnd, int index);
+    [DllImport("user32.dll")] private static extern IntPtr GetForegroundWindow();
+    [DllImport("user32.dll")] private static extern IntPtr GetAncestor(IntPtr hWnd, uint flags);
     [DllImport("user32.dll")] private static extern int SetWindowLong(IntPtr hWnd, int index, int value);
 
     private readonly AppHost app;
@@ -1605,6 +1607,19 @@ public class CardWindow : Window
         }
         if (bestX <= threshold) Left = bestLeft;
         if (bestY <= threshold) Top = bestTop;
+    }
+
+    public void CheckFullscreenForeground()
+    {
+        if (!isFullscreen) return;
+        try
+        {
+            var fg = GetForegroundWindow();
+            var root = fg == IntPtr.Zero ? IntPtr.Zero : GetAncestor(fg, 2); // GA_ROOT
+            var mine = new WindowInteropHelper(this).Handle;
+            if (root != mine) ExitFullscreen();
+        }
+        catch { }
     }
 
     private void ApplyClickThrough(bool transparent)

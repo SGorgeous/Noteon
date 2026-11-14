@@ -127,6 +127,11 @@ class Program
         launchTimer.Tick += (s, e) => ProcessLaunchQueue(dataDir, host);
         launchTimer.Start();
 
+        var fgTimer = new DispatcherTimer();
+        fgTimer.Interval = TimeSpan.FromMilliseconds(500);
+        fgTimer.Tick += (s, e) => { foreach (var w in host.Windows) w.CheckFullscreenForeground(); };
+        fgTimer.Start();
+
         WinForms.NotifyIcon tray = null;
         try
         {
