@@ -15,7 +15,6 @@ class Program
 {
     [DllImport("user32.dll")] static extern bool RegisterHotKey(IntPtr hWnd, int id, uint fsModifiers, uint vk);
     [DllImport("user32.dll")] static extern bool UnregisterHotKey(IntPtr hWnd, int id);
-    [STAThread]
     static void FlushAndExit(AppHost host, Application app)
     {
         var windows = new List<CardWindow>(host.Windows);
@@ -31,6 +30,7 @@ class Program
         app.Shutdown();
     }
 
+    [STAThread]
     static void Main()
     {
         var baseDir = AppDomain.CurrentDomain.BaseDirectory;

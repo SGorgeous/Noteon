@@ -1,5 +1,9 @@
 'use strict';
 
+// C#/WebView2 宿主里，WebView 内部的 backdrop-filter 无法正确采样桌面，
+// 会得到发灰/发脏的透明效果。
+if (window.chrome && window.chrome.webview) document.body.classList.add('csharp-host');
+
 (function () {
   const $ = (sel) => document.querySelector(sel);
   const host = $('#host');
@@ -201,6 +205,11 @@
 
   function applyTheme() {
     theme = window.NoteonTheme.resolve(info.theme.themeId, info.theme.customTheme, card);
+    // WebView2 无法真实采样桌面，高透明会让底下文字直接透出来；默认提高到接近不透明。
+    if (document.body.classList.contains('csharp-host')) {
+      // WebView2 的透明卡片无法真正采样桌面，过低 alpha 会让底下文字直接透出来。
+      theme.alpha = Math.max(theme.alpha, 0.9);
+    }
     window.NoteonTheme.apply(document.documentElement, theme);
     btnPin.classList.toggle('active', !!card.alwaysOnTop);
     btnPin.title = card.alwaysOnTop ? '已置顶（点击取消）' : '置顶窗口';

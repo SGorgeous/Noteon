@@ -266,3 +266,13 @@ body.immersive .toast { display: none; }
 }
 .cm-item:hover > .cm-sub, .cm-item.open > .cm-sub { display: block; }
 .cm-sub.left, .card-menu.left-sub .cm-item > .cm-sub { left: auto; right: calc(100% - 2px); }
+
+/* WebView2 不能可靠采样桌面背景，关闭 WebView 内部的模糊，透明只靠主题 alpha。 */
+body.csharp-host .frame {
+  backdrop-filter: none !important;
+  -webkit-backdrop-filter: none !important;
+}
+body.csharp-host .card-menu {
+  backdrop-filter: none !important;
+  -webkit-backdrop-filter: none !important;
+}
