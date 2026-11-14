@@ -5,6 +5,14 @@
     return /^[a-zA-Z]:[\\/]/.test(s) || /^\\\\/.test(s) || /^\//.test(s);
   }
 
+  function normalizeInput(input) {
+    var s = String(input || '').trim();
+    if (!s) return s;
+    if (/^[a-z][a-z0-9+.-]*:/i.test(s)) return s;
+    if (isLocalPath(s)) return s;
+    return 'http://' + s;
+  }
+
   window.Noteon.define({
     id: 'web',
     mount(ctx) {
@@ -125,7 +133,8 @@
       }
 
       async function go(input, force) {
-        const value = String(input || '').trim();
+        const value = normalizeInput(input);
+        if (value && urlInput.value !== value) urlInput.value = value;
         if (!value) return;
         if (mounted && !force && value === currentUrl) return;
         welcome.classList.add('hidden');

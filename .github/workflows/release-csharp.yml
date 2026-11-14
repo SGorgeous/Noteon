@@ -1,0 +1,27 @@
+name: release-csharp
+
+on:
+  push:
+    tags:
+      - 'v2.*'
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Upload portable package
+        uses: softprops/action-gh-release@v2
+        with:
+          files: csharp/dist/Noteon-win64.zip
+          name: Noteon ${{ github.ref_name }} (C# WebView2)
+          body: |
+            Noteon C# WPF + WebView2 宿主。
+
+            - 便携版，解压后运行 `Noteon.exe`
+            - 需要 Windows 10/11 + WebView2 Runtime
+            - 本包为 C# 重写版；旧 Electron 版见之前的 release
+          make_latest: true

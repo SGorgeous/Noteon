@@ -1,6 +1,6 @@
 'use strict';
 
-const { app, BrowserWindow, ipcMain, protocol, screen, Tray, Menu, nativeImage, dialog, shell, clipboard, session } = require('electron');
+const { app, BrowserWindow, ipcMain, protocol, screen, Tray, Menu, nativeImage, dialog, shell, clipboard, session, globalShortcut, desktopCapturer } = require('electron');
 const fs = require('node:fs');
 const fsp = fs.promises;
 const path = require('node:path');
@@ -21,7 +21,7 @@ const DATA_DIR = app.isPackaged
   : path.join(ROOT, 'data');
 
 
-const LAUNCH_PLUGINS = ['note', 'text', 'image', 'folder', 'web', 'relay'];
+const LAUNCH_PLUGINS = ['note', 'text', 'screenshot', 'image', 'folder', 'web', 'relay'];
 
 function parseNewArgs(argv) {
   const args = (argv || []).slice(1);
@@ -78,16 +78,26 @@ function createFromLaunch(req) {
   }
 }
 
+function contextMenuIds() {
+  const all = shellMenu.PLUGINS.map(([id]) => id);
+  const saved = Array.isArray(store.settings.contextMenuPlugins) ? store.settings.contextMenuPlugins : all;
+  return all.filter((id) => saved.includes(id));
+}
+
 function syncShellMenu() {
   if (SMOKE || DEMO) return;
   if (store.settings.contextMenu == null) {
     store.settings.contextMenu = app.isPackaged;
     store.touch();
   }
-  if (store.settings.contextMenu) {
-    try { if (!shellMenu.isCurrent(shellMenuOptions())) shellMenu.install(shellMenuOptions()); }
-    catch (err) { console.warn('[shellmenu] 安装失败:', err.message); }
-  }
+  const ids = contextMenuIds();
+  try {
+    if (store.settings.contextMenu && ids.length) {
+      if (!shellMenu.isCurrent(shellMenuOptions(), ids)) shellMenu.install(shellMenuOptions(), ids);
+    } else {
+      shellMenu.uninstall();
+    }
+  } catch (err) { console.warn('[shellmenu] 安装失败:', err.message); }
 }
 
 app.setName('Noteon');
@@ -251,6 +261,7 @@ async function boot() {
   registerIpc();
   setupSession();
   buildTray();
+  registerGlobalShortcuts();
 
   const firstRun = store.cards.length === 0;
   const launch = pendingLaunch;
@@ -275,7 +286,7 @@ async function boot() {
           '- `+` 里可以换主题、调透明度、开启鼠标穿透',
           '',
           '从托盘菜单或控制台新建卡片：',
-          '文件夹映射 · 图片参考 · 文本 · 网页 · 文件中转',
+          '文件夹映射 · 图片 · 截屏 · 文本 · 网页 · 文件中转',
         ].join('\n'),
         fontSize: 14,
       },
@@ -356,6 +367,20 @@ function openPanel() {
   return panelWin;
 }
 
+function registerGlobalShortcuts() {
+  try {
+    const ok = globalShortcut.register('Control+Alt+N', () => {
+      if (!cards) return;
+      cards.showAll();
+      cards.tileAll();
+    });
+    if (!ok) console.warn('[shortcut] Control+Alt+N 注册失败，可能被占用');
+    else console.log('[shortcut] Control+Alt+N registered');
+  } catch (err) {
+    console.warn('[shortcut]', err.message);
+  }
+}
+
 function buildTray() {
   const iconPath = path.join(ASSETS, 'tray.png');
   let image = fs.existsSync(iconPath) ? nativeImage.createFromPath(iconPath) : nativeImage.createEmpty();
@@ -381,7 +406,10 @@ function rebuildTrayMenu() {
     },
     { type: 'separator' },
     { label: '显示全部卡片', click: () => cards.showAll() },
+    { label: '显示全部并排列（Ctrl+Alt+N）', click: () => { cards.showAll(); cards.tileAll(); } },
     { label: '隐藏全部卡片', click: () => cards.hideAll() },
+    { label: '全部桌面模式', click: () => cards.setAllDesktop(true) },
+    { label: '全部取消桌面模式', click: () => cards.unembedAll() },
     { label: '全部置顶', click: () => cards.setAllAlwaysOnTop(true) },
     { label: '取消全部置顶', click: () => cards.setAllAlwaysOnTop(false) },
     { label: '解除全部鼠标穿透', click: () => cards.unlockAll() },
@@ -440,7 +468,7 @@ function registerIpc() {
   ipcMain.handle('card:update', (event, patch) => {
     const found = cardFromEvent(event);
     if (!found || !patch || typeof patch !== 'object') return null;
-    const allowed = ['title', 'alwaysOnTop', 'locked', 'alpha', 'accent', 'themeId'];
+    const allowed = ['title', 'alwaysOnTop', 'desktop', 'locked', 'alpha', 'accent', 'themeId'];
     const clean = {};
     for (const k of allowed) if (patch[k] !== undefined) clean[k] = patch[k];
     return cards.update(found.id, clean);
@@ -655,19 +683,29 @@ function registerIpc() {
     if (win) win.isMaximized() ? win.unmaximize() : win.maximize();
   });
 
-  ipcMain.handle('shellmenu:set', (_e, enabled) => {
+  ipcMain.handle('shellmenu:set', (_e, cfg) => {
     try {
-      if (enabled) {
-        if (!shellMenu.isCurrent(shellMenuOptions())) shellMenu.install(shellMenuOptions());
-      } else shellMenu.uninstall();
-      store.settings.contextMenu = !!enabled;
+      const opts = (cfg && typeof cfg === 'object') ? cfg : { enabled: !!cfg };
+      const all = shellMenu.PLUGINS.map(([id]) => id);
+      const wanted = Array.isArray(opts.plugins) ? opts.plugins : contextMenuIds();
+      const ids = all.filter((id) => wanted.includes(id));
+      const enabled = !!opts.enabled && ids.length > 0;
+      store.settings.contextMenu = enabled;
+      store.settings.contextMenuPlugins = ids;
       store.touch();
-      return { ok: true, enabled: !!enabled };
+      if (enabled) shellMenu.install(shellMenuOptions(), ids);
+      else shellMenu.uninstall();
+      return { ok: true, enabled, selected: ids, plugins: shellMenu.PLUGINS };
     } catch (err) {
       return { ok: false, error: err.message };
     }
   });
-  ipcMain.handle('shellmenu:get', () => ({ setting: !!store.settings.contextMenu, installed: shellMenu.isInstalled() }));
+  ipcMain.handle('shellmenu:get', () => ({
+    enabled: !!store.settings.contextMenu,
+    installed: shellMenu.isInstalled(),
+    plugins: shellMenu.PLUGINS,
+    selected: contextMenuIds(),
+  }));
 
   /* ---- 插件 ---- */
   ipcMain.handle('plugins:list', () => plugins.list());
@@ -916,6 +954,166 @@ function registerIpc() {
     }
   });
 
+  async function grabDisplay() {
+    const display = screen.getDisplayNearestPoint(screen.getCursorScreenPoint());
+    const sf = display.scaleFactor || 1;
+    const sources = await desktopCapturer.getSources({
+      types: ['screen'],
+      thumbnailSize: {
+        width: Math.max(1, Math.round(display.size.width * sf)),
+        height: Math.max(1, Math.round(display.size.height * sf)),
+      },
+      fetchWindowIcons: false,
+    });
+    const source = sources.find((s) => String(s.display_id) === String(display.id)) || sources[0];
+    if (!source || !source.thumbnail || source.thumbnail.isEmpty()) throw new Error('没有拿到屏幕画面');
+    return { display, image: source.thumbnail };
+  }
+
+  function openRegionSelector(display, dataUrl) {
+    return new Promise((resolve) => {
+      let settled = false;
+      let overlay = null;
+      let timer = 0;
+      const cleanup = () => {
+        ipcMain.removeListener('region:done', onDone);
+        ipcMain.removeListener('region:cancel', onCancel);
+        if (timer) clearTimeout(timer);
+      };
+      const finish = (rect) => {
+        if (settled) return;
+        settled = true;
+        cleanup();
+        if (overlay && !overlay.isDestroyed()) overlay.close();
+        resolve(rect);
+      };
+      const onDone = (e, rect) => {
+        if (!overlay || e.sender !== overlay.webContents) return;
+        if (!rect || !(Number(rect.w) > 0) || !(Number(rect.h) > 0)) return finish(null);
+        finish(rect);
+      };
+      const onCancel = (e) => {
+        if (!overlay || e.sender !== overlay.webContents) return;
+        finish(null);
+      };
+      ipcMain.on('region:done', onDone);
+      ipcMain.on('region:cancel', onCancel);
+      overlay = new BrowserWindow({
+        x: display.bounds.x,
+        y: display.bounds.y,
+        width: display.bounds.width,
+        height: display.bounds.height,
+        show: false,
+        frame: false,
+        transparent: false,
+        backgroundColor: '#05070b',
+        resizable: false,
+        movable: false,
+        minimizable: false,
+        maximizable: false,
+        fullscreenable: false,
+        skipTaskbar: true,
+        alwaysOnTop: true,
+        hasShadow: false,
+        enableLargerThanScreen: true,
+        webPreferences: {
+          preload: path.join(__dirname, 'preload-region.js'),
+          contextIsolation: true,
+          nodeIntegration: false,
+        },
+      });
+      overlay.setMenuBarVisibility(false);
+      overlay.setAlwaysOnTop(true, 'screen-saver');
+      overlay.once('closed', () => {
+        if (!settled) {
+          settled = true;
+          cleanup();
+          resolve(null);
+        }
+      });
+      overlay.webContents.once('did-finish-load', () => {
+        if (settled) return;
+        overlay.webContents.send('region:image', { dataUrl });
+        overlay.show();
+        overlay.focus();
+      });
+      overlay.webContents.once('render-process-gone', () => finish(null));
+      overlay.loadFile(path.join(ROOT, 'renderer', 'region.html')).catch(() => finish(null));
+      timer = setTimeout(() => finish(null), 120000);
+    });
+  }
+
+  ipcMain.handle('screen:capture', async (event) => {
+    const win = BrowserWindow.fromWebContents(event.sender);
+    const panelWasVisible = !!(panelWin && !panelWin.isDestroyed() && panelWin.isVisible());
+    try {
+      if (panelWasVisible) panelWin.hide();
+      if (win && !win.isDestroyed()) win.hide();
+      await new Promise((r) => setTimeout(r, 260));
+      const { image } = await grabDisplay();
+      const size = image.getSize();
+      return { ok: true, dataUrl: image.toDataURL(), width: size.width, height: size.height };
+    } catch (err) {
+      return { ok: false, error: err.message };
+    } finally {
+      if (win && !win.isDestroyed()) { win.show(); win.focus(); }
+      if (panelWasVisible && panelWin && !panelWin.isDestroyed()) panelWin.showInactive();
+    }
+  });
+
+  ipcMain.handle('screen:capture-region', async (event) => {
+    const win = BrowserWindow.fromWebContents(event.sender);
+    const panelWasVisible = !!(panelWin && !panelWin.isDestroyed() && panelWin.isVisible());
+    try {
+      if (panelWasVisible) panelWin.hide();
+      if (win && !win.isDestroyed()) win.hide();
+      await new Promise((r) => setTimeout(r, 260));
+      const { display, image } = await grabDisplay();
+      const rect = await openRegionSelector(display, image.toDataURL());
+      if (!rect) return { ok: false, canceled: true };
+      const size = image.getSize();
+      const x = Math.max(0, Math.min(size.width - 1, Math.round(rect.x)));
+      const y = Math.max(0, Math.min(size.height - 1, Math.round(rect.y)));
+      const w = Math.max(1, Math.min(size.width - x, Math.round(rect.w)));
+      const h = Math.max(1, Math.min(size.height - y, Math.round(rect.h)));
+      const cropped = image.crop({ x, y, width: w, height: h });
+      return { ok: true, dataUrl: cropped.toDataURL(), width: w, height: h };
+    } catch (err) {
+      return { ok: false, error: err.message };
+    } finally {
+      if (win && !win.isDestroyed()) { win.show(); win.focus(); }
+      if (panelWasVisible && panelWin && !panelWin.isDestroyed()) panelWin.showInactive();
+    }
+  });
+
+  ipcMain.handle('capture:save', async (event, { dataUrl, saveAs } = {}) => {
+    try {
+      const m = String(dataUrl || '').match(/^data:image\/([a-z0-9+.-]+);base64,(.*)$/is);
+      if (!m) throw new Error('图片数据无效');
+      const ext = m[1] === 'jpeg' ? 'jpg' : m[1];
+      const buf = Buffer.from(m[2], 'base64');
+      const dir = path.join(app.getPath('userData'), 'shots');
+      await fsp.mkdir(dir, { recursive: true });
+      const d = new Date();
+      const p2 = (n) => String(n).padStart(2, '0');
+      const stamp = `${d.getFullYear()}${p2(d.getMonth() + 1)}${p2(d.getDate())}-${p2(d.getHours())}${p2(d.getMinutes())}${p2(d.getSeconds())}-${String(d.getMilliseconds()).padStart(3, '0')}`;
+      let target = path.join(dir, `Noteon-${stamp}.${ext}`);
+      if (saveAs) {
+        const win = BrowserWindow.fromWebContents(event.sender);
+        const picked = await dialog.showSaveDialog(win, {
+          defaultPath: target,
+          filters: [{ name: '图片', extensions: ['png', 'jpg'] }],
+        });
+        if (picked.canceled || !picked.filePath) return { ok: false, canceled: true };
+        target = picked.filePath;
+      }
+      await fsp.writeFile(target, buf);
+      return { ok: true, path: target };
+    } catch (err) {
+      return { ok: false, error: err.message };
+    }
+  });
+
   ipcMain.handle('image:load', async (event, { src } = {}) => {
     try {
       let local = String(src || '');
@@ -1071,9 +1269,10 @@ function demoSpecs() {
   const img2 = path.join(data, 'ref-b.png');
   const page = path.join(data, 'page.html');
   return [
-    { plugin: 'note', title: '便签', state: { text: '# 今日计划\n\n- [x] 桌面便签\n- [ ] 图片参考\n- [ ] 文件夹映射\n\n> 点右上角 + 换主题、调透明度。\n\n`Ctrl+W` 关闭卡片。', fontSize: 14 } },
+    { plugin: 'note', title: '便签', state: { text: '# 今日计划\n\n- [x] 桌面便签\n- [ ] 图片\n- [ ] 文件夹映射\n\n> 点右上角 + 换主题、调透明度。\n\n`Ctrl+W` 关闭卡片。', fontSize: 14 } },
     { plugin: 'text', title: 'sample.txt', state: { path: sampleText, fontSize: 13 } },
     { plugin: 'image', title: '绘画参考', state: { items: [{ src: img1, name: 'ref-a.png' }, { src: img2, name: 'ref-b.png' }], index: 0 } },
+    { plugin: 'screenshot', title: '截屏', state: {} },
     { plugin: 'folder', title: '文件夹映射', state: { path: folder } },
     { plugin: 'web', title: '网页预览', state: { url: page } },
     { plugin: 'relay', title: '文件中转', state: { items: [{ path: sampleText, name: 'sample.txt', size: 1024, isDir: false }, { path: sampleMd, name: 'notes.md', size: 2048, isDir: false }] } },
@@ -1184,6 +1383,124 @@ async function runSmoke() {
     shots.push({ plugin: 'image-split', error: err.message });
   }
 
+  // 图片插件：双击隐藏 UI、右键取色、双击右键复制
+  const imageTest = {};
+  try {
+    const imgCard = created.find((c) => c.plugin === 'image');
+    const imgWin = imgCard && cards.getById(imgCard.id);
+    if (imgWin) {
+      await imgWin.webContents.executeJavaScript(`document.querySelector('[data-act="split"]').click()`);
+      await wait(300);
+      await wait(700);
+      imageTest.immersive = await imgWin.webContents.executeJavaScript(`
+        (() => {
+          const stage = document.querySelector('.stage');
+          const r = stage.getBoundingClientRect();
+          const ev = (t, x, y) => stage.dispatchEvent(new MouseEvent(t, { bubbles: true, clientX: x, clientY: y }));
+          ev('dblclick', r.left + r.width / 2, r.top + r.height / 2);
+          return document.body.classList.contains('immersive');
+        })()
+      `);
+      await wait(500);
+      const img = await imgWin.webContents.capturePage();
+      const file = path.join(outDir, 'image-only.png');
+      fs.writeFileSync(file, img.toPNG());
+      shots.push({ plugin: 'image-only', file, size: img.getSize() });
+      await imgWin.webContents.executeJavaScript(`
+        (() => {
+          const stage = document.querySelector('.stage');
+          const r = stage.getBoundingClientRect();
+          const x = r.left + r.width / 2, y = r.top + r.height / 2;
+          const ev = (t) => stage.dispatchEvent(new MouseEvent(t, { bubbles: true, clientX: x, clientY: y }));
+          ev('contextmenu'); ev('contextmenu');
+        })()
+      `);
+      await wait(400);
+      const clip = String(await clipboard.readText());
+      imageTest.clipboard = clip;
+      imageTest.clipboardType = typeof clip;
+      imageTest.hex = /^[0-9A-F]{6}$/.test(clip);
+      imageTest.restored = await imgWin.webContents.executeJavaScript(`
+        (() => {
+          const stage = document.querySelector('.stage');
+          stage.dispatchEvent(new MouseEvent('dblclick', { bubbles: true }));
+          return !document.body.classList.contains('immersive');
+        })()
+      `);
+    }
+  } catch (err) {
+    imageTest.error = err.message;
+  }
+  console.log('[smoke] image', JSON.stringify(imageTest));
+
+  // 截屏插件：实际抓取一次屏幕（会隐藏截屏卡片和面板）
+  const shotTest = {};
+  try {
+    const sc = created.find((c) => c.plugin === 'screenshot');
+    const sw = sc && cards.getById(sc.id);
+    if (sw) {
+      await sw.webContents.executeJavaScript(`document.querySelector('[data-act="capture"]').click()`);
+      let regionWin = null;
+      for (let i = 0; i < 60; i++) {
+        regionWin = BrowserWindow.getAllWindows().find((w) => !w.isDestroyed() && w.webContents.getURL().includes('region.html'));
+        if (regionWin) break;
+        await wait(250);
+      }
+      if (!regionWin) throw new Error('区域选择窗口没有打开');
+      shotTest.regionOpened = true;
+      try {
+        const rimg = await regionWin.webContents.capturePage();
+        const rfile = path.join(outDir, 'region.png');
+        fs.writeFileSync(rfile, rimg.toPNG());
+        shots.push({ plugin: 'region', file: rfile, size: rimg.getSize() });
+      } catch (err) {
+        shotTest.regionShotError = err.message;
+      }
+      const rb = regionWin.getBounds();
+      const sx = Math.round(rb.width * 0.22);
+      const sy = Math.round(rb.height * 0.22);
+      const ex = Math.round(rb.width * 0.58);
+      const ey = Math.round(rb.height * 0.56);
+      shotTest.expect = { w: ex - sx, h: ey - sy };
+      regionWin.webContents.sendInputEvent({ type: 'mouseDown', x: sx, y: sy, button: 'left', clickCount: 1 });
+      await wait(90);
+      regionWin.webContents.sendInputEvent({ type: 'mouseMove', x: ex, y: ey, button: 'left', clickCount: 1 });
+      await wait(90);
+      regionWin.webContents.sendInputEvent({ type: 'mouseUp', x: ex, y: ey, button: 'left', clickCount: 1 });
+      await wait(1500);
+      if (regionWin && !regionWin.isDestroyed()) {
+        await regionWin.webContents.executeJavaScript(`window.region.done({ x: 100, y: 100, w: 420, h: 320 })`);
+        await wait(700);
+      }
+      shotTest.canvas = await sw.webContents.executeJavaScript(`(() => {
+        const c = document.querySelector('.shot-canvas');
+        return { width: c.width, height: c.height, hidden: c.classList.contains('hidden') };
+      })()`);
+      const before = { ...shotTest.canvas };
+      await sw.webContents.executeJavaScript(`document.querySelector('[data-act="rotate"]').click()`);
+      await wait(350);
+      const rotated = await sw.webContents.executeJavaScript(`(() => { const c = document.querySelector('.shot-canvas'); return { width: c.width, height: c.height }; })()`);
+      await sw.webContents.executeJavaScript(`document.querySelector('[data-act="undo"]').click()`);
+      await wait(500);
+      const back = await sw.webContents.executeJavaScript(`(() => { const c = document.querySelector('.shot-canvas'); return { width: c.width, height: c.height }; })()`);
+      shotTest.rotate = { before, rotated, back };
+      shotTest.saved = await sw.webContents.executeJavaScript(`(async () => {
+        const c = document.querySelector('.shot-canvas');
+        const r = await window.noteon.saveCapture(c.toDataURL('image/png'), false);
+        return { ok: !!(r && r.ok), path: (r && r.path) || '' };
+      })()`);
+      const beforeIds = new Set(cards.listCards().map((c) => c.id));
+      await sw.webContents.executeJavaScript(`document.querySelector('[data-act="to-image"]').click()`);
+      await wait(1200);
+      const added = cards.listCards().filter((c) => !beforeIds.has(c.id));
+      shotTest.imageCard = { count: added.length, plugin: added[0] ? added[0].plugin : '' };
+      for (const c of added) cards.close(c.id);
+    }
+  } catch (err) {
+    shotTest.error = err.message;
+  }
+  console.log('[smoke] shot', JSON.stringify(shotTest));
+
   // 主题切换（纸页）后重新截便签
   try {
     if (panel && !panel.isDestroyed()) {
@@ -1199,6 +1516,29 @@ async function runSmoke() {
   } catch (err) {
     shots.push({ plugin: 'note-paper', error: err.message });
   }
+
+  // 控制台编辑右键菜单
+  const menuEditor = {};
+  try {
+    await panel.webContents.executeJavaScript(`document.querySelector('#editMenu').click()`);
+    await wait(500);
+    menuEditor.state = await panel.webContents.executeJavaScript(`(() => {
+      const m = document.querySelector('#menuModal');
+      return {
+        shown: !m.classList.contains('hidden'),
+        count: document.querySelectorAll('#menuPlugins input').length,
+        checked: document.querySelectorAll('#menuPlugins input:checked').length,
+      };
+    })()`);
+    const img = await panel.webContents.capturePage();
+    const file = path.join(outDir, 'panel-menu.png');
+    fs.writeFileSync(file, img.toPNG());
+    shots.push({ plugin: 'panel-menu', file, size: img.getSize() });
+    await panel.webContents.executeJavaScript(`document.querySelector('#menuCancel').click()`);
+  } catch (err) {
+    menuEditor.error = err.message;
+  }
+  console.log('[smoke] menu-editor', JSON.stringify(menuEditor));
 
   // 控制台「显示 / 隐藏」自测
   const panelActions = {};
@@ -1278,10 +1618,71 @@ async function runSmoke() {
   }
   console.log('[smoke] interaction', JSON.stringify(interaction));
 
+  // 全部显示并排列
+  const tileTest = {};
+  try {
+    cards.tileAll();
+    await wait(500);
+    const bs = created.map((c) => {
+      const w = cards.getById(c.id);
+      return w && !w.isDestroyed() ? w.getBounds() : null;
+    }).filter(Boolean);
+    let overlap = false;
+    for (let i = 0; i < bs.length; i++) {
+      for (let j = i + 1; j < bs.length; j++) {
+        const a = bs[i], b = bs[j];
+        if (a.x < b.x + b.width && b.x < a.x + a.width && a.y < b.y + b.height && b.y < a.y + a.height) overlap = true;
+      }
+    }
+    tileTest.bounds = bs;
+    tileTest.overlap = overlap;
+    tileTest.ok = !overlap && bs.every((b) => b.width > 0 && b.height > 0);
+  } catch (err) {
+    tileTest.error = err.message;
+  }
+  console.log('[smoke] tile', JSON.stringify(tileTest));
+
+  // 嵌入桌面：临时把第一张卡片挂到桌面窗口，再撤出
+  const desktopTest = {};
+  try {
+    const id = created[0].id;
+    const win = cards.getById(id);
+    desktopTest.before = win.getBounds();
+    const embedRes = await win.webContents.executeJavaScript(`window.noteon.updateCard({ desktop: true })`);
+    desktopTest.embed = !!(embedRes && embedRes.desktop);
+    await wait(800);
+    const c = cards.listCards().find((x) => x.id === id);
+    desktopTest.state = !!(c && c.desktop);
+    desktopTest.visible = win.isVisible();
+    try {
+      const sources = await desktopCapturer.getSources({ types: ['screen'], thumbnailSize: { width: 1600, height: 1000 } });
+      if (sources[0] && !sources[0].thumbnail.isEmpty()) {
+        const file = path.join(outDir, 'desktop-embed.png');
+        fs.writeFileSync(file, sources[0].thumbnail.toPNG());
+        shots.push({ plugin: 'desktop-embed', file, size: sources[0].thumbnail.getSize() });
+      }
+    } catch (err) {
+      desktopTest.shotError = err.message;
+    }
+    const restoreRes = await win.webContents.executeJavaScript(`window.noteon.updateCard({ desktop: false })`);
+    desktopTest.restore = !!(restoreRes && !restoreRes.desktop);
+    await wait(900);
+    desktopTest.after = win.getBounds();
+    desktopTest.ok = desktopTest.embed && desktopTest.restore && win.isVisible();
+  } catch (err) {
+    desktopTest.error = err.message;
+  }
+  console.log('[smoke] desktop', JSON.stringify(desktopTest));
+
   const report = {
     interaction,
     panelActions,
     hideTest,
+    imageTest,
+    shotTest,
+    menuEditor,
+    tileTest,
+    desktopTest,
     shots,
     console: consoleLines.slice(0, 300),
     cards: cards.listCards(),
@@ -1309,6 +1710,10 @@ async function runDemo() {
 
 app.on('window-all-closed', () => {
   // 保持托盘常驻，不自动退出
+});
+
+app.on('will-quit', () => {
+  try { globalShortcut.unregisterAll(); } catch {}
 });
 
 app.on('before-quit', () => {

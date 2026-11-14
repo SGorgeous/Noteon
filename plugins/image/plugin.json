@@ -1,6 +1,6 @@
 {
   "id": "image",
-  "name": "图片参考",
+  "name": "图片",
   "description": "随意缩放、拖动、对比、吸色，适合绘画参考与图片比对。",
   "version": "1.0.0",
   "icon": "icon.svg",

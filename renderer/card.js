@@ -323,6 +323,7 @@
     }));
     const items = [
       { id: 'pin', label: '窗口置顶', type: 'checkbox', checked: !!card.alwaysOnTop },
+      { id: 'desktop', label: '桌面模式（不置顶）', type: 'checkbox', checked: !!card.desktop },
       ...(card.plugin === 'web' ? [] : [{ id: 'lock', label: '鼠标穿透（锁定）', type: 'checkbox', checked: !!card.locked }]),
       { type: 'separator' },
       { label: '主题', submenu: themeItems },
@@ -339,6 +340,16 @@
     if (picked === 'pin') {
       card = await window.noteon.updateCard({ alwaysOnTop: !card.alwaysOnTop }) || card;
       applyTheme();
+    } else if (picked === 'desktop') {
+      const next = !card.desktop;
+      const res = await window.noteon.updateCard({ desktop: next });
+      if (!res) {
+        toast('嵌入桌面失败（仅 Windows 可用）', true);
+      } else {
+        card = res;
+        applyTheme();
+        toast(res.desktop ? '已进入桌面模式；可从托盘「全部取消桌面模式」恢复' : '已取消桌面模式');
+      }
     } else if (picked === 'lock') {
       toast('已开启鼠标穿透，可在托盘菜单「解除全部鼠标穿透」恢复');
       setTimeout(() => window.noteon.updateCard({ locked: true }), 800);
@@ -443,6 +454,8 @@
       },
       close() { return window.noteon.close(); },
       hide() { return window.noteon.hide(); },
+      setImmersive(on) { document.body.classList.toggle('immersive', !!on); },
+      isImmersive() { return document.body.classList.contains('immersive'); },
       openCard(opts) { return window.noteon.openCard(opts); },
       openFile(p) { return window.noteon.openFile(p); },
       showCard(id) { return window.noteon.showCard(id); },
@@ -485,10 +498,24 @@
       webDevTools() { return window.noteon.webDevTools(); },
       webDestroy() { return window.noteon.webDestroy(); },
 
+      captureScreen() { return window.noteon.captureScreen(); },
+      captureRegion() { return window.noteon.captureRegion(); },
+      saveCapture(dataUrl, saveAs) { return window.noteon.saveCapture(dataUrl, saveAs); },
+
       async loadImage(src) {
         const r = await window.noteon.loadImage(src);
         if (!r || !r.ok) throw new Error((r && r.error) || '图片加载失败');
-        const blob = new Blob([r.bytes], { type: r.mime || 'image/png' });
+        let blob;
+        if (r.dataUrl) {
+          const m = String(r.dataUrl).match(/^data:([^;]+);base64,(.*)$/s);
+          if (!m) throw new Error('图片数据无效');
+          const bin = atob(m[2]);
+          const arr = new Uint8Array(bin.length);
+          for (let i = 0; i < bin.length; i++) arr[i] = bin.charCodeAt(i);
+          blob = new Blob([arr], { type: m[1] || 'image/png' });
+        } else {
+          blob = new Blob([r.bytes], { type: r.mime || 'image/png' });
+        }
         const url = URL.createObjectURL(blob);
         try {
           const dim = await new Promise((resolve, reject) => {

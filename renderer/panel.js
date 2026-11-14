@@ -398,16 +398,63 @@
     bindSwitch('#setSnap', 'snap');
     bindSwitch('#setTaskbar', 'hideFromTaskbar');
     bindSwitch('#setPanel', 'showPanelOnStart');
+    const menuModal = $('#menuModal');
+    const menuList = $('#menuPlugins');
+    const menuSelected = () => [...menuList.querySelectorAll('input:checked')].map((x) => x.value);
+
+    async function openMenuEditor() {
+      const info = await P.getShellMenu();
+      const selected = new Set((info && info.selected) || []);
+      menuList.innerHTML = '';
+      for (const [id, label] of ((info && info.plugins) || [])) {
+        const lab = document.createElement('label');
+        const cb = document.createElement('input');
+        cb.type = 'checkbox';
+        cb.value = id;
+        cb.checked = selected.has(id);
+        const span = document.createElement('span');
+        span.textContent = label;
+        lab.append(cb, span);
+        menuList.append(lab);
+      }
+      menuModal.classList.remove('hidden');
+    }
+    function closeMenuEditor() { menuModal.classList.add('hidden'); }
+
+    async function applyMenu(enabled) {
+      const ids = menuSelected();
+      const r = await P.setShellMenu({ enabled, plugins: ids });
+      if (!r || !r.ok) {
+        toast('右键菜单设置失败：' + ((r && r.error) || '未知错误'), true);
+        return;
+      }
+      settings.contextMenu = !!r.enabled;
+      settings.contextMenuPlugins = r.selected || ids;
+      $('#setMenu').checked = !!r.enabled;
+      closeMenuEditor();
+      toast(r.enabled ? `已保存右键菜单（${r.selected.length} 项）` : '已关闭右键菜单');
+    }
+
     $('#setMenu').addEventListener('change', async (e) => {
       const enabled = e.target.checked;
-      const r = await P.setShellMenu(enabled);
+      const r = await P.setShellMenu({ enabled, plugins: settings.contextMenuPlugins || undefined });
       if (!r || !r.ok) {
         e.target.checked = !enabled;
         toast('右键菜单设置失败：' + ((r && r.error) || '未知错误'), true);
         return;
       }
-      settings.contextMenu = enabled;
-      toast(enabled ? '已添加右键菜单（Win11 可能在「显示更多选项」里）' : '已移除右键菜单');
+      settings.contextMenu = !!r.enabled;
+      settings.contextMenuPlugins = r.selected || null;
+      e.target.checked = !!r.enabled;
+      toast(r.enabled ? '已添加右键菜单（Win11 可能在「显示更多选项」里）' : '已移除右键菜单');
+    });
+    $('#editMenu').addEventListener('click', openMenuEditor);
+    $('#menuCancel').addEventListener('click', closeMenuEditor);
+    $('#menuSave').addEventListener('click', () => applyMenu(true));
+    $('#menuOff').addEventListener('click', () => applyMenu(false));
+    menuModal.addEventListener('click', (e) => { if (e.target === menuModal) closeMenuEditor(); });
+    document.addEventListener('keydown', (e) => {
+      if (e.key === 'Escape' && !menuModal.classList.contains('hidden')) closeMenuEditor();
     });
 
     $('#openData').addEventListener('click', () => P.openDataDir());

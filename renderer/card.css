@@ -194,3 +194,18 @@ body.ready .frame {
   font-size: 12px;
   line-height: 1.6;
 }
+
+/* 沉浸模式：只保留插件内容（图片插件用） */
+body.immersive .frame {
+  background: transparent;
+  border-color: transparent;
+  box-shadow: none;
+  border-radius: 0;
+  backdrop-filter: none;
+  -webkit-backdrop-filter: none;
+}
+body.immersive .frame::before { display: none; }
+body.immersive .bar,
+body.immersive .status,
+body.immersive .handles,
+body.immersive .toast { display: none; }

@@ -34,6 +34,8 @@
       let fitMode = !(Number.isFinite(st.zoom) && st.zoom > 0);
       let current = null;
       let lastColor = typeof st.color === 'string' ? st.color : '';
+      let immersive = false;
+      let lastRightAt = 0;
 
       const cache = new Map();
       let loadToken = 0;
@@ -57,7 +59,6 @@
             <button class="ib" data-act="zoomin" title="放大">+</button>
             <span class="sep"></span>
             <button class="ib" data-act="split" title="对比（左 当前 / 右 下一张）">${ctx.icon('split', 14)}</button>
-            <button class="ib" data-act="pick" title="吸管取色">${ctx.icon('eyedropper', 14)}</button>
             <span class="swatch"></span>
             <button class="ib" data-act="more" title="更多">${ctx.icon('dots', 14)}</button>
           </div>
@@ -82,9 +83,7 @@
       const swatch = root.querySelector('.swatch');
       const gridOverlay = root.querySelector('.grid-overlay');
       const btnSplit = root.querySelector('[data-act="split"]');
-      const btnPick = root.querySelector('[data-act="pick"]');
 
-      let picking = false;
       let sampleCanvas = null;
 
       /* ---------------- 数据 / 状态 ---------------- */
@@ -122,7 +121,7 @@
         if (!current) return;
         const rect = stage.getBoundingClientRect();
         if (!rect.width || !rect.height) return;
-        const bottomUI = items.length > 1 ? 108 : 46;
+        const bottomUI = immersive ? 0 : (items.length > 1 ? 108 : 46);
         const availW = Math.max(60, rect.width - 24);
         const availH = Math.max(60, rect.height - bottomUI - 16);
         const s = Math.min(availW / current.width, availH / current.height);
@@ -171,11 +170,10 @@
         stage.classList.toggle('pixelated', pixelated);
         gridOverlay.classList.toggle('on', grid);
         btnSplit.classList.toggle('on', split);
-        btnPick.classList.toggle('on', picking);
         if (lastColor) {
           swatch.classList.add('on');
           swatch.style.background = lastColor;
-          swatch.title = lastColor;
+          swatch.title = lastColor + '（点击复制）';
         } else {
           swatch.classList.remove('on');
         }
@@ -298,7 +296,7 @@
       /* ---------------- 吸管 ---------------- */
 
       function sampleAt(clientX, clientY) {
-        if (!current) return;
+        if (!current) return '';
         const rect = stage.getBoundingClientRect();
         const cx = rect.left + rect.width / 2 + panX;
         const cy = rect.top + rect.height / 2 + panY;
@@ -309,7 +307,7 @@
         const iy = Math.floor(y);
         if (ix < 0 || iy < 0 || ix >= current.width || iy >= current.height) {
           api.toast('点在图片外面了');
-          return;
+          return '';
         }
         if (!sampleCanvas) sampleCanvas = document.createElement('canvas');
         if (sampleCanvas.width !== current.width || sampleCanvas.height !== current.height) {
@@ -320,12 +318,7 @@
         c2d.clearRect(0, 0, current.width, current.height);
         c2d.drawImage(imgA, 0, 0, current.width, current.height);
         const d = c2d.getImageData(ix, iy, 1, 1).data;
-        const hex = '#' + [d[0], d[1], d[2]].map((n) => n.toString(16).padStart(2, '0')).join('').toUpperCase();
-        lastColor = hex;
-        updateStageClass();
-        api.copy(hex);
-        api.toast(`已复制颜色 ${hex}`);
-        scheduleSave();
+        return '#' + [d[0], d[1], d[2]].map((n) => n.toString(16).padStart(2, '0')).join('').toUpperCase();
       }
 
       /* ---------------- 交互 ---------------- */
@@ -363,7 +356,6 @@
         panning = false;
         stage.classList.remove('panning');
         if (moved) scheduleSave();
-        else if (picking) sampleAt(e.clientX, e.clientY);
       };
       stage.addEventListener('pointerup', endPan);
       stage.addEventListener('pointercancel', () => { panning = false; stage.classList.remove('panning'); });
@@ -375,12 +367,46 @@
         zoomAt(e.clientX, e.clientY, factor);
       }, { passive: false });
 
+      function setImmersive(on) {
+        immersive = !!on;
+        api.setImmersive(immersive);
+        if (current) requestAnimationFrame(() => fitView());
+      }
+
       stage.addEventListener('dblclick', (e) => {
         if (e.target.closest('.bar, .thumbs, .split-line, .empty')) return;
         if (!current) return;
-        if (Math.abs(zoom - 1) < 0.02) fitView();
-        else oneToOne();
+        setImmersive(!immersive);
       });
+
+      stage.addEventListener('contextmenu', (e) => {
+        if (!current) return;
+        if (e.target.closest('.bar, .thumbs, .split-line')) return;
+        e.preventDefault();
+        const hex = sampleAt(e.clientX, e.clientY);
+        if (!hex) return;
+        lastColor = hex;
+        updateStageClass();
+        const now = Date.now();
+        if (now - lastRightAt < 420) {
+          const plain = hex.replace('#', '');
+          api.copy(plain);
+          api.toast('已复制颜色值 ' + plain);
+          lastRightAt = 0;
+        } else {
+          lastRightAt = now;
+          api.toast('取色 ' + hex);
+        }
+        scheduleSave();
+      });
+
+      const onKeyDown = (e) => {
+        if (e.key === 'Escape' && immersive) {
+          e.preventDefault();
+          setImmersive(false);
+        }
+      };
+      document.addEventListener('keydown', onKeyDown);
 
       /* ---- 分割线 ---- */
       let splitDrag = false;
@@ -421,10 +447,11 @@
         scheduleSave();
         api.toast(split ? '对比：左 当前 / 右 下一张' : '已关闭对比');
       });
-      root.querySelector('[data-act="pick"]').addEventListener('click', () => {
-        picking = !picking;
-        updateStageClass();
-        api.toast(picking ? '吸管已开启：点图片任意位置取色' : '吸管已关闭');
+      swatch.addEventListener('click', () => {
+        if (!lastColor) return;
+        const plain = lastColor.replace('#', '');
+        api.copy(plain);
+        api.toast('已复制颜色值 ' + plain);
       });
 
       root.querySelector('[data-act="more"]').addEventListener('click', async () => {
@@ -505,6 +532,8 @@
       return {
         unmount() {
           ro.disconnect();
+          document.removeEventListener('keydown', onKeyDown);
+          api.setImmersive(false);
           clearTimeout(saveTimer);
           api.saveState({ items, index, bg, grid, flip, split, splitPos, pixelated, zoom, panX, panY, color: lastColor });
           for (const rec of cache.values()) {

@@ -5,3 +5,11 @@ node_modules/
 data/
 dist/
 tools/rcedit-x64.exe
+
+# C# host build output / local captures
+csharp/Noteon/*.exe
+csharp/Noteon/*.dll
+csharp/Noteon/*.png
+csharp/Noteon/*.log
+csharp/prototype/
+csharp/lib/webview2.zip

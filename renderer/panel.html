@@ -165,7 +165,7 @@
             </div>
             <div class="srow">
               <div class="stext"><b>资源管理器右键菜单</b><span>桌面 / 文件夹空白处右键 → 在 Noteon 新建…</span></div>
-              <label class="switch"><input type="checkbox" id="setMenu"><i></i></label>
+              <div class="sctl"><button class="btn small" id="editMenu">编辑…</button><label class="switch"><input type="checkbox" id="setMenu"><i></i></label></div>
             </div>
           </div>
 
@@ -236,6 +236,20 @@
           </div>
         </section>
       </main>
+    </div>
+  </div>
+
+  <div class="modal hidden" id="menuModal">
+    <div class="modal-box">
+      <h3>编辑右键菜单</h3>
+      <p class="muted">勾选要出现在「在 Noteon 新建」里的插件。</p>
+      <div class="menu-plugins" id="menuPlugins"></div>
+      <div class="modal-actions">
+        <button class="btn small danger" id="menuOff">关闭右键菜单</button>
+        <span class="modal-gap"></span>
+        <button class="btn ghost small" id="menuCancel">取消</button>
+        <button class="btn primary small" id="menuSave">保存</button>
+      </div>
     </div>
   </div>
 

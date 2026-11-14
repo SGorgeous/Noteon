@@ -1,0 +1,13 @@
+{
+  "id": "screenshot",
+  "name": "截屏",
+  "description": "截取屏幕，裁剪、旋转、翻转、画笔标注，快捷保存或直接生成图片卡片。",
+  "version": "1.0.0",
+  "icon": "icon.svg",
+  "entry": "index.js",
+  "style": "style.css",
+  "defaultSize": [760, 580],
+  "minSize": [380, 300],
+  "order": 25,
+  "accent": "#5ad1c8"
+}

@@ -216,3 +216,18 @@
 }
 .plugin-image .empty .bigbtn:hover { filter: brightness(1.08); }
 .plugin-image .empty .hint { font-size: 10.5px; opacity: 0.65; }
+
+.plugin-image .swatch.on { cursor: pointer; }
+
+/* 沉浸模式：只留图片，隐藏插件内所有 UI */
+body.immersive .plugin-image .stage {
+  background: transparent !important;
+}
+body.immersive .plugin-image .bar,
+body.immersive .plugin-image .thumbs,
+body.immersive .plugin-image .namechip,
+body.immersive .plugin-image .grid-overlay,
+body.immersive .plugin-image .split-line,
+body.immersive .plugin-image .empty {
+  display: none !important;
+}

@@ -22,7 +22,7 @@ contextBridge.exposeInMainWorld('noteon', {
   showAllCards: () => ipcRenderer.invoke('cards:show-all'),
   hideAllCards: () => ipcRenderer.invoke('cards:hide-all'),
   unlockAll: () => ipcRenderer.invoke('cards:unlock-all'),
-  setShellMenu: (enabled) => ipcRenderer.invoke('shellmenu:set', enabled),
+  setShellMenu: (config) => ipcRenderer.invoke('shellmenu:set', config),
   getShellMenu: () => ipcRenderer.invoke('shellmenu:get'),
   applyToAll: (patch) => ipcRenderer.invoke('settings:apply-to-all', patch),
   getSettings: () => ipcRenderer.invoke('settings:get'),

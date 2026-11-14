@@ -5,7 +5,8 @@ const { execFileSync } = require('node:child_process');
 const PLUGINS = [
   ['note', '便签'],
   ['text', '文本'],
-  ['image', '图片参考'],
+  ['screenshot', '截屏'],
+  ['image', '图片'],
   ['folder', '文件夹映射'],
   ['web', '网页'],
   ['relay', '文件中转'],
@@ -43,9 +44,11 @@ function commandFor(plugin, opts) {
   return parts.join(' ');
 }
 
-function install(opts) {
+function install(opts, ids) {
   const BS = String.fromCharCode(92);
   const target = opts.packaged ? opts.execPath : opts.appPath;
+  const selected = (Array.isArray(ids) ? PLUGINS.filter(([id]) => ids.includes(id)) : PLUGINS.slice());
+  if (!selected.length) return uninstall();
   for (const root of LEGACY_ROOTS) runReg(['delete', root, '/f'], true);
   for (const root of ROOTS) {
     runReg(['delete', root, '/f'], true);
@@ -55,8 +58,10 @@ function install(opts) {
     // 空 SubCommands 表示使用本键下的 shell 子键
     runReg(['add', root, '/v', 'SubCommands', '/t', 'REG_SZ', '/d', '', '/f']);
     runReg(['add', root, '/v', 'InstallPath', '/d', target, '/f']);
-    for (let idx = 0; idx < PLUGINS.length; idx++) {
-      const [id, label] = PLUGINS[idx];
+    runReg(['add', root, '/v', 'MenuVersion', '/d', '2', '/f']);
+    runReg(['add', root, '/v', 'MenuPlugins', '/d', selected.map(([id]) => id).join(','), '/f']);
+    for (let idx = 0; idx < selected.length; idx++) {
+      const [id, label] = selected[idx];
       const key = root + BS + 'shell' + BS + String(idx + 1).padStart(2, '0') + id;
       runReg(['add', key, '/v', 'MUIVerb', '/d', label, '/f']);
       runReg(['add', key + BS + 'command', '/ve', '/d', commandFor(id, opts), '/f']);
@@ -65,11 +70,16 @@ function install(opts) {
   return true;
 }
 
-function isCurrent(opts) {
+function isCurrent(opts, ids) {
   try {
     const target = opts.packaged ? opts.execPath : opts.appPath;
-    const out = execFileSync('reg.exe', ['query', ROOTS[0], '/v', 'InstallPath'], { windowsHide: true, encoding: 'utf8' });
-    return out.includes(target);
+    const selected = (Array.isArray(ids) ? PLUGINS.filter(([id]) => ids.includes(id)) : PLUGINS.slice()).map(([id]) => id);
+    if (!selected.length) return false;
+    const read = (name) => execFileSync('reg.exe', ['query', ROOTS[0], '/v', name], { windowsHide: true, encoding: 'utf8' });
+    if (!read('InstallPath').includes(target)) return false;
+    if (!read('MenuVersion').includes('2')) return false;
+    if (!read('MenuPlugins').includes(selected.join(','))) return false;
+    return true;
   } catch {
     return false;
   }

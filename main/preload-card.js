@@ -60,6 +60,9 @@ const api = {
 
   /* ---------- 图片 / 菜单 ---------- */
   loadImage: (src) => ipcRenderer.invoke('image:load', { src }),
+  captureScreen: () => ipcRenderer.invoke('screen:capture'),
+  captureRegion: () => ipcRenderer.invoke('screen:capture-region'),
+  saveCapture: (dataUrl, saveAs) => ipcRenderer.invoke('capture:save', { dataUrl, saveAs: !!saveAs }),
   menu: (items, x, y) => ipcRenderer.invoke('menu:popup', { items, x, y }),
 
   /* ---------- 网页内容层 ---------- */

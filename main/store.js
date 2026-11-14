@@ -12,6 +12,7 @@ const DEFAULT_SETTINGS = {
   hideFromTaskbar: true,
   showPanelOnStart: false,
   contextMenu: null,
+  contextMenuPlugins: null,
 };
 
 function makeId(prefix = 'c') {
@@ -79,6 +80,8 @@ class Store {
       w: Number.isFinite(c.w) ? Math.max(160, Math.round(c.w)) : 360,
       h: Number.isFinite(c.h) ? Math.max(120, Math.round(c.h)) : 420,
       alwaysOnTop: c.alwaysOnTop !== false,
+      desktop: c.desktop === true,
+      desktopTop: c.desktopTop !== false,
       locked: c.locked === true,
       alpha: Number.isFinite(c.alpha) ? Math.min(1, Math.max(0.2, c.alpha)) : null,
       accent: typeof c.accent === 'string' ? c.accent : '',
@@ -106,7 +109,7 @@ class Store {
   updateCard(id, patch) {
     const c = this.getCard(id);
     if (!c) return null;
-    const allowed = ['title', 'x', 'y', 'w', 'h', 'alwaysOnTop', 'locked', 'alpha', 'accent', 'themeId', 'plugin'];
+    const allowed = ['title', 'x', 'y', 'w', 'h', 'alwaysOnTop', 'desktop', 'desktopTop', 'locked', 'alpha', 'accent', 'themeId', 'plugin'];
     for (const k of allowed) {
       if (patch[k] !== undefined) c[k] = patch[k];
     }

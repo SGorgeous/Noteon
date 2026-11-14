@@ -33,6 +33,7 @@ class CardManager {
       title: c.title || (m ? m.name : '卡片'),
       state: c.state || {},
       alwaysOnTop: !!c.alwaysOnTop,
+      desktop: !!c.desktop,
       locked: !!c.locked,
       alpha: c.alpha,
       accent: c.accent || '',
@@ -88,6 +89,7 @@ class CardManager {
       w: bounds.w,
       h: bounds.h,
       alwaysOnTop: opts.alwaysOnTop !== undefined ? !!opts.alwaysOnTop : !!this.store.settings.defaultAlwaysOnTop,
+      desktop: opts.desktop === true,
       alpha: Number.isFinite(opts.alpha) ? opts.alpha : null,
       themeId: opts.themeId || '',
       accent: opts.accent || '',
@@ -147,6 +149,7 @@ class CardManager {
       if (opts.inactive || this.smoke) win.showInactive();
       else win.show();
       if (opts.focus && !this.smoke) win.focus();
+      if (card.desktop && !this.smoke) setTimeout(() => this.setDesktop(card.id, true), 160);
     });
 
     win.on('move', () => this.captureBounds(card.id));
@@ -218,7 +221,11 @@ class CardManager {
     return true;
   }
 
-  update(id, patch) {
+  async update(id, patch) {
+    if (patch && patch.desktop !== undefined) {
+      const ok = await this.setDesktop(id, !!patch.desktop);
+      return ok ? this.publicCard(this.store.getCard(id)) : null;
+    }
     const card = this.store.updateCard(id, patch);
     if (!card) return null;
     const win = this.windows.get(id);
@@ -234,7 +241,49 @@ class CardManager {
     return this.publicCard(card);
   }
 
+  setDesktop(id, on) {
+    const card = this.store.getCard(id);
+    if (!card) return false;
+    const win = this.windows.get(id);
+    if (!win || win.isDestroyed()) {
+      if (on) {
+        this.store.updateCard(id, { desktop: true, desktopTop: !!card.alwaysOnTop, alwaysOnTop: false });
+      } else {
+        this.store.updateCard(id, { desktop: false, alwaysOnTop: card.desktopTop !== false });
+      }
+      this.broadcast('card:updated', this.publicCard(this.store.getCard(id)));
+      return true;
+    }
+    if (on) {
+      const prevTop = card.desktop ? (card.desktopTop !== false) : !!card.alwaysOnTop;
+      win.setAlwaysOnTop(false);
+      win.setSkipTaskbar(true);
+      win.show();
+      this.store.updateCard(id, { desktop: true, desktopTop: prevTop, alwaysOnTop: false });
+    } else {
+      const top = card.desktopTop !== false;
+      win.setBounds({ x: card.x, y: card.y, width: card.w, height: card.h });
+      win.setAlwaysOnTop(top, 'floating');
+      win.setSkipTaskbar(!!this.store.settings.hideFromTaskbar);
+      win.show();
+      this.store.updateCard(id, { desktop: false, alwaysOnTop: top });
+    }
+    this.broadcast('card:updated', this.publicCard(this.store.getCard(id)));
+    this.broadcast('board:changed', this.listCards());
+    return true;
+  }
+
+  async setAllDesktop(on) {
+    for (const card of this.store.cards) this.setDesktop(card.id, !!on);
+    this.broadcast('board:changed', this.listCards());
+  }
+
+  unembedAll() {
+    return this.setAllDesktop(false);
+  }
+
   setAllAlwaysOnTop(value) {
+
     for (const card of this.store.cards) {
       this.store.updateCard(card.id, { alwaysOnTop: !!value });
       const win = this.windows.get(card.id);
@@ -267,6 +316,7 @@ class CardManager {
   showAll() {
     let first = null;
     for (const card of this.store.cards) {
+      if (card.desktop) this.setDesktop(card.id, false);
       this.ensureOnScreen(card);
       let win = this.windows.get(card.id);
       if (!win) win = this.openWindow(card, { inactive: true });
@@ -277,6 +327,42 @@ class CardManager {
       }
     }
     // 把第一张卡片提到最前，控制台会自动失焦、让出置顶
+    if (first && !first.isDestroyed()) first.focus();
+  }
+
+  tileAll() {
+    const list = this.store.cards;
+    if (!list.length) return;
+    const display = screen.getDisplayNearestPoint(screen.getCursorScreenPoint());
+    const area = display.workArea;
+    const n = list.length;
+    const gap = 12;
+    const cols = n === 1 ? 1 : Math.ceil(Math.sqrt(n));
+    const rows = Math.ceil(n / cols);
+    let cellW = Math.floor((area.width - gap * (cols + 1)) / cols);
+    let cellH = Math.floor((area.height - gap * (rows + 1)) / rows);
+    cellW = Math.max(220, Math.min(920, cellW));
+    cellH = Math.max(160, Math.min(720, cellH));
+    const gridW = cols * cellW + gap * (cols - 1);
+    const gridH = rows * cellH + gap * (rows - 1);
+    const startX = Math.round(area.x + (area.width - gridW) / 2);
+    const startY = Math.round(area.y + (area.height - gridH) / 2);
+
+    list.forEach((card, i) => {
+      if (card.desktop) this.setDesktop(card.id, false);
+      const x = startX + (i % cols) * (cellW + gap);
+      const y = startY + Math.floor(i / cols) * (cellH + gap);
+      this.store.updateCard(card.id, { x, y, w: cellW, h: cellH });
+      const win = this.windows.get(card.id);
+      if (win && !win.isDestroyed()) {
+        win.setBounds({ x, y, width: cellW, height: cellH });
+        win.showInactive();
+        win.moveTop();
+      }
+    });
+
+    this.broadcast('board:changed', this.listCards());
+    const first = this.windows.get(list[0].id);
     if (first && !first.isDestroyed()) first.focus();
   }
 
