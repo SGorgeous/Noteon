@@ -7,7 +7,7 @@
 
 ## 项目状态
 
-从 **v2.0.0** 起，Noteon 的默认实现是 **C# WPF + WebView2**：
+当前版本 **1.0.0**，Noteon 使用 **C# WPF + WebView2**：
 
 - `main` / `v2-csharp`：C# 宿主（当前主分支）
 - `electron-legacy`：旧 Electron 实现，保留 v0.1.2 及更早版本

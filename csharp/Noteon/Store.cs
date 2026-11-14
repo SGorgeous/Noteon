@@ -80,6 +80,7 @@ public class Store
         b.settings["hideFromTaskbar"] = true;
         b.settings["contextMenu"] = false;
         b.settings["autoStart"] = true;
+        b.settings["version"] = "1.0.0";
         return b;
     }
 

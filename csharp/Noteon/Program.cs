@@ -75,6 +75,11 @@ class Program
             store.Settings["autoStart"] = true;
             store.Save();
         }
+        if (!store.Settings.ContainsKey("version"))
+        {
+            store.Settings["version"] = "1.0.0";
+            store.Save();
+        }
         var host = new AppHost();
         host.Store = store;
         host.WebRoot = webRoot;
@@ -84,8 +89,59 @@ class Program
         if (reqPlugin == null && store.Cards.Count == 0)
         {
             var state = new Dictionary<string, object>();
-            state["text"] = "# 你好，Noteon (C# WebView2)\n\n这是新的 C# 宿主，正在逐步接管原来的 Electron 功能。\n\n- 透明卡片\n- 拖动标题栏移动\n- 右下角缩放\n- 关闭按钮";
+            state["text"] = @"# 欢迎使用 Noteon
+
+**作者：ACMinerva** · 版本 **1.0.0**
+
+Noteon 是一个桌面便签 / 卡片容器。每张卡片都是独立小窗口，卡片里能做什么由插件决定。
+
+## 内置卡片
+
+- **便签**：Markdown 编辑与预览、字号、自动保存
+- **文本**：打开 txt / md / 代码，自动保存，可拖入文件
+- **图片**：缩放、拖动、多图、分割对比、三分网格、翻转、取色；双击图片隐藏 UI
+- **截屏**：全屏或拖框截取，裁剪 / 旋转 / 翻转 / 画布编辑，生成图片卡片
+- **文件夹映射**：双击打开，列表 / 网格图片预览，小 / 中 / 大图标
+- **网页**：网址或本地 HTML，地址栏、前进后退、缩放
+- **文件中转**：暂存文件，再拖到桌面、聊天窗口或其他软件
+- **绘画 Demo**：笔刷、橡皮、图层、选区、复制粘贴、导入图片
+
+## 快捷键
+
+- **Ctrl+Alt+N**：显示全部卡片并排列
+- **Ctrl+Alt+Shift+N**：弹出「新建卡片」选择窗口
+- **Ctrl+W**：关闭并删除当前卡片
+- **Ctrl+H**：隐藏当前卡片（可从托盘或控制台恢复）
+- **Esc**：关闭菜单 / 退出重命名 / 退出图片纯图模式
+- **图片双击**：进入或退出纯图模式
+- **文件夹 F5**：刷新
+- **文件夹 Backspace / Alt+↑**：上一级
+- **文件夹 Enter**：打开选中项
+- **控制台 F5**：刷新
+
+## 卡片标题栏
+
+- 最左：关闭并删除卡片
+- 中间：标题
+- 最右：隐藏卡片
+- 其他：置顶、全屏、小窗、卡片设置
+
+## 控制台
+
+- 托盘单击或双击打开控制台
+- 主题、透明度、置顶、桌面组件、鼠标穿透
+- 卡片管理、插件、右键菜单
+- 开机自启默认开启，可在设置里关闭
+
+## 右键新建
+
+在桌面或文件夹空白处右键，选择「在 Noteon 新建」。
+
+## 数据
+
+卡片和内容保存在程序目录的 data/board.json，正常退出会自动保存。点最左的 × 会删除卡片；想保留内容请用最右端的隐藏。";
             state["fontSize"] = 14;
+            state["preview"] = true;
             store.Add("note", "欢迎使用 Noteon", 180, 140, 460, 500, state);
         }
 
