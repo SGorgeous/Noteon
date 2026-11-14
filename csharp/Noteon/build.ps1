@@ -51,6 +51,10 @@ Get-ChildItem $here -File | Where-Object { $_.Name -match '^(Noteon\.exe|Microso
 
 if ($Package) {
   $dist = Join-Path $root 'csharp\dist\Noteon'
+  $distData = Join-Path $dist 'data'
+  $keepData = Join-Path ([IO.Path]::GetTempPath()) ('noteon-data-' + [guid]::NewGuid().ToString('N'))
+  $hadData = Test-Path $distData
+  if ($hadData) { Copy-Item $distData $keepData -Recurse -Force }
   if (Test-Path $dist) { Remove-Item $dist -Recurse -Force }
   New-Item -ItemType Directory -Path $dist | Out-Null
   Copy-Item $out $dist
@@ -61,5 +65,10 @@ if ($Package) {
   Copy-Item (Join-Path $root 'renderer') $dist -Recurse
   Copy-Item (Join-Path $root 'plugins') $dist -Recurse
   Copy-Item (Join-Path $root 'assets') $dist -Recurse
+  if ($hadData -and (Test-Path $keepData)) {
+    New-Item -ItemType Directory -Path $distData | Out-Null
+    Copy-Item (Join-Path $keepData '*') $distData -Recurse -Force
+    Remove-Item $keepData -Recurse -Force
+  }
   Write-Host "packaged: $dist"
 }
