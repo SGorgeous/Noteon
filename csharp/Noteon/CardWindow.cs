@@ -1363,7 +1363,7 @@ public class CardWindow : Window
             Height = Math.Max(160, restoreBounds.Height);
             Topmost = topmostBeforeFullscreen;
             rootGrid.Clip = new RectangleGeometry(new Rect(0, 0, Math.Max(1, Width), Math.Max(1, Height)), 14, 14);
-            Show();
+            // 不要 Show()，避免退出全屏时抢回焦点。
         }
         catch { }
         applyingBounds = false;
