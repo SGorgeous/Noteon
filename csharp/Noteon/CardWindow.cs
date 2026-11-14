@@ -808,8 +808,8 @@ public class CardWindow : Window
         if (method == "openPath")
         {
             var p = args.Length > 0 ? Convert.ToString(args[0]) : "";
-            if (File.Exists(p)) Process.Start(p);
-            else if (Directory.Exists(p)) Process.Start("explorer.exe", "\"" + p + "\"");
+            if (File.Exists(p)) Process.Start(new ProcessStartInfo { FileName = p, UseShellExecute = true });
+            else if (Directory.Exists(p)) Process.Start(new ProcessStartInfo { FileName = "explorer.exe", Arguments = "\"" + p + "\"", UseShellExecute = true });
             return true;
         }
         if (method == "openDevTools") { web.CoreWebView2.OpenDevToolsWindow(); return true; }
@@ -846,8 +846,14 @@ public class CardWindow : Window
             var p = args.Length > 0 ? Convert.ToString(args[0]) : "";
             try
             {
-                if (File.Exists(p)) Process.Start(p);
-                else if (Directory.Exists(p)) Process.Start("explorer.exe", "\"" + p + "\"");
+                if (File.Exists(p))
+                {
+                    Process.Start(new ProcessStartInfo { FileName = p, UseShellExecute = true });
+                }
+                else if (Directory.Exists(p))
+                {
+                    Process.Start(new ProcessStartInfo { FileName = "explorer.exe", Arguments = "\"" + p + "\"", UseShellExecute = true });
+                }
                 else return new Dictionary<string, object> { { "ok", false }, { "error", "文件不存在" } };
                 return new Dictionary<string, object> { { "ok", true } };
             }

@@ -23,6 +23,7 @@
       let dir = typeof st.path === 'string' ? st.path : '';
       let showHidden = !!st.showHidden;
       let sort = ['name', 'mtime', 'size'].includes(st.sort) ? st.sort : 'name';
+      let iconSize = ['sm', 'md', 'lg'].includes(st.iconSize) ? st.iconSize : 'md';
       let entries = [];
       let selectedPath = '';
       let loadToken = 0;
@@ -35,6 +36,9 @@
           <button class="fbtn" data-act="refresh" title="刷新">${ctx.icon('refresh', 13)}</button>
           <button class="fbtn" data-act="pick" title="选择文件夹">${ctx.icon('folderOpen', 13)}</button>
           <button class="fbtn" data-act="reveal" title="在资源管理器中打开">${ctx.icon('external', 13)}</button>
+          <button class="fbtn fsize" data-size="sm" title="小图标">小</button>
+          <button class="fbtn fsize" data-size="md" title="中图标">中</button>
+          <button class="fbtn fsize" data-size="lg" title="大图标">大</button>
           <button class="fbtn" data-act="more" title="更多">${ctx.icon('dots', 13)}</button>
         </div>
         <div class="flist"></div>`;
@@ -87,6 +91,8 @@
         if (!dir) return renderEmpty();
         pathEl.textContent = dir;
         pathEl.title = dir;
+        list.className = 'flist size-' + iconSize;
+        root.querySelectorAll('[data-size]').forEach((b) => b.classList.toggle('on', b.dataset.size === iconSize));
         if (!entries.length) {
           list.innerHTML = `<div class="empty" style="height:100%">
             <div class="big">${ctx.icon('folderOpen', 22)}</div>
@@ -206,6 +212,11 @@
       root.querySelector('[data-act="refresh"]').addEventListener('click', () => dir && load(dir));
       root.querySelector('[data-act="pick"]').addEventListener('click', pickFolder);
       root.querySelector('[data-act="reveal"]').addEventListener('click', () => dir && api.reveal(dir));
+      root.querySelectorAll('[data-size]').forEach((btn) => btn.addEventListener('click', () => {
+        iconSize = btn.dataset.size;
+        api.saveState({ iconSize });
+        render();
+      }));
       root.querySelector('[data-act="more"]').addEventListener('click', async () => {
         const picked = await api.menu([
           { id: 'hidden', label: '显示隐藏文件', type: 'checkbox', checked: showHidden },
@@ -217,6 +228,14 @@
               { id: 'sort:size', label: '大小', type: 'checkbox', checked: sort === 'size' },
             ],
           },
+          {
+            label: '图标大小',
+            submenu: [
+              { id: 'size:sm', label: '小', type: 'checkbox', checked: iconSize === 'sm' },
+              { id: 'size:md', label: '中', type: 'checkbox', checked: iconSize === 'md' },
+              { id: 'size:lg', label: '大', type: 'checkbox', checked: iconSize === 'lg' },
+            ],
+          },
           { type: 'separator' },
           { id: 'change', label: '更换映射文件夹' },
           { id: 'refresh', label: '刷新' },
@@ -224,6 +243,7 @@
         if (!picked) return;
         if (picked === 'hidden') { showHidden = !showHidden; api.saveState({ showHidden }); if (dir) load(dir); }
         else if (picked.startsWith('sort:')) { sort = picked.slice(5); api.saveState({ sort }); render(); }
+        else if (picked.startsWith('size:')) { iconSize = picked.slice(5); api.saveState({ iconSize }); render(); }
         else if (picked === 'change') pickFolder();
         else if (picked === 'refresh' && dir) load(dir);
       });

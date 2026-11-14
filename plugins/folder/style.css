@@ -107,3 +107,32 @@
   color: var(--muted);
 }
 .plugin-folder .drive:hover { color: var(--fg); background: var(--hover); }
+
+/* 小 / 中 / 大图标预览 */
+.plugin-folder .flist.size-sm .frow {
+  height: 30px;
+}
+.plugin-folder .flist.size-md .frow {
+  height: 38px;
+  gap: 10px;
+}
+.plugin-folder .flist.size-lg .frow {
+  height: 52px;
+  gap: 12px;
+}
+.plugin-folder .flist.size-sm .frow .ficon { width: 17px; height: 17px; }
+.plugin-folder .flist.size-md .frow .ficon { width: 26px; height: 26px; }
+.plugin-folder .flist.size-lg .frow .ficon { width: 40px; height: 40px; }
+.plugin-folder .frow .ficon svg { width: 100%; height: 100%; }
+.plugin-folder .flist.size-md .frow .fname { font-size: 12.5px; }
+.plugin-folder .flist.size-lg .frow .fname { font-size: 13px; }
+.plugin-folder .flist.size-lg .frow .fmeta { font-size: 10.5px; }
+.plugin-folder .fsize {
+  min-width: 20px;
+  padding: 0 4px;
+  font-size: 10px;
+}
+.plugin-folder .fsize.on {
+  color: var(--accent);
+  background: var(--accent-soft);
+}
