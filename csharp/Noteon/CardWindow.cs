@@ -441,17 +441,6 @@ public class CardWindow : Window
             try { web.AllowExternalDrop = false; } catch { }
             HookDrop(web);
             rootGrid.Children.Insert(0, web);
-            if (Card.plugin == "web")
-            {
-                webView = new WebView2();
-                webView.DefaultBackgroundColor = System.Drawing.Color.White;
-                webView.Visibility = Visibility.Collapsed;
-                webView.HorizontalAlignment = HorizontalAlignment.Left;
-                webView.VerticalAlignment = VerticalAlignment.Top;
-                rootGrid.Children.Add(webView);
-                await webView.EnsureCoreWebView2Async(env);
-                SetupWebView();
-            }
             await web.EnsureCoreWebView2Async(env);
             var core = web.CoreWebView2;
             core.SetVirtualHostNameToFolderMapping("noteon.local", app.WebRoot, CoreWebView2HostResourceAccessKind.DenyCors);
@@ -465,6 +454,30 @@ public class CardWindow : Window
             core.NavigationCompleted += (s2, ev) => { if (loadingOverlay != null) loadingOverlay.Visibility = Visibility.Collapsed; PostWebState(ev.IsSuccess ? (CoreWebView2WebErrorStatus?)null : ev.WebErrorStatus, false); };
             await core.AddScriptToExecuteOnDocumentCreatedAsync(app.BridgeJs);
             core.Navigate("https://noteon.local/renderer/card.html?card=" + Uri.EscapeDataString(Card.id) + "&v=" + DateTime.UtcNow.Ticks);
+            if (Card.plugin == "web")
+            {
+                try
+                {
+                    webView = new WebView2();
+                    webView.DefaultBackgroundColor = System.Drawing.Color.White;
+                    webView.HorizontalAlignment = HorizontalAlignment.Left;
+                    webView.VerticalAlignment = VerticalAlignment.Top;
+                    webView.Width = 1;
+                    webView.Height = 1;
+                    webView.Visibility = Visibility.Visible;
+                    rootGrid.Children.Add(webView);
+                    await webView.EnsureCoreWebView2Async(env);
+                    webView.Visibility = Visibility.Collapsed;
+                    SetupWebView();
+                }
+                catch (Exception webEx)
+                {
+                    try { File.AppendAllText(Path.Combine(app.DataDir, "web-error.txt"), DateTime.Now + " | " + webEx + Environment.NewLine); } catch { }
+                    try { if (webView != null) webView.Dispose(); } catch { }
+                    webView = null;
+                    webReady = false;
+                }
+            }
             if (Card.desktop) ApplyDesktop(true);
             initializing = false;
         }
