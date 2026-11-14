@@ -246,6 +246,9 @@ public class CardWindow : Window
     [DllImport("user32.dll")] private static extern bool SetWindowPos(IntPtr hWnd, IntPtr after, int x, int y, int cx, int cy, uint flags);
     [DllImport("user32.dll", CharSet = CharSet.Auto)] private static extern IntPtr FindWindow(string cls, string name);
     [DllImport("user32.dll")] private static extern IntPtr GetWindow(IntPtr hWnd, uint cmd);
+    [DllImport("user32.dll")] private static extern bool GetCursorPos(out POINT pt);
+    [DllImport("user32.dll")] private static extern IntPtr WindowFromPoint(POINT pt);
+    [DllImport("user32.dll")] private static extern bool GetWindowRect(IntPtr hWnd, out RECT rect);
 
     private readonly AppHost app;
     public Card Card { get; private set; }
@@ -276,6 +279,10 @@ public class CardWindow : Window
     private Rect restoreBounds;
     private bool topmostBeforeFullscreen;
     private double cardOpacity = 1;
+    private DispatcherTimer hoverTimer;
+    private bool hoverRaised;
+    [StructLayout(LayoutKind.Sequential)] private struct POINT { public int X; public int Y; }
+    [StructLayout(LayoutKind.Sequential)] private struct RECT { public int L; public int T; public int R; public int B; }
     private Rect? stylusCanvas;
     private List<Rect> stylusExclude = new List<Rect>();
     private Border loadingOverlay;
@@ -357,6 +364,11 @@ public class CardWindow : Window
             if (!initializing && !resizing && !applyingBounds && !isFullscreen) SaveBounds();
         };
         Closed += (s, e) => { if (resizeTimer != null) resizeTimer.Stop(); DisposeWebViews(); app.Remove(this); };
+        hoverTimer = new DispatcherTimer();
+        hoverTimer.Interval = TimeSpan.FromMilliseconds(120);
+        hoverTimer.Tick += (s, e) => CheckDesktopHover();
+        hoverTimer.Start();
+
         SourceInitialized += (s, e) =>
         {
             var src = HwndSource.FromHwnd(new WindowInteropHelper(this).Handle);
@@ -1470,6 +1482,62 @@ public class CardWindow : Window
         applyingBounds = false;
         SaveBounds();
         return true;
+    }
+
+    private void CheckDesktopHover()
+    {
+        if (!Card.desktop)
+        {
+            if (hoverRaised) { SendToBottom(); hoverRaised = false; }
+            return;
+        }
+        try
+        {
+            var hwnd = new WindowInteropHelper(this).Handle;
+            if (hwnd == IntPtr.Zero) return;
+            POINT p;
+            if (!GetCursorPos(out p)) return;
+            RECT r;
+            if (!GetWindowRect(hwnd, out r)) return;
+            bool inside = p.X >= r.L && p.X <= r.R && p.Y >= r.T && p.Y <= r.B;
+            if (!inside)
+            {
+                if (hoverRaised) { SendToBottom(); hoverRaised = false; }
+                return;
+            }
+            var hit = WindowFromPoint(p);
+            var root = hit == IntPtr.Zero ? IntPtr.Zero : GetAncestor(hit, 2);
+            if (root == hwnd)
+            {
+                if (!hoverRaised) { RaiseForHover(); }
+                return;
+            }
+            var progman = FindWindow("Progman", null);
+            var worker = FindWindow("WorkerW", null);
+            if (root == progman || root == worker)
+            {
+                if (!hoverRaised) RaiseForHover();
+            }
+            else if (hoverRaised)
+            {
+                SendToBottom();
+                hoverRaised = false;
+            }
+        }
+        catch { }
+    }
+
+    private void RaiseForHover()
+    {
+        try
+        {
+            var hwnd = new WindowInteropHelper(this).Handle;
+            if (hwnd == IntPtr.Zero) return;
+            // 顶层、但不激活；点击交给 WM_MOUSEACTIVATE。
+            SetWindowPos(hwnd, IntPtr.Zero, 0, 0, 0, 0, 0x0001 | 0x0002 | 0x0010 | 0x0040);
+            hoverRaised = true;
+        }
+        catch { }
     }
 
     public void SendToBottom()
