@@ -575,21 +575,28 @@ if (window.chrome && window.chrome.webview) document.body.classList.add('csharp-
       e.stopPropagation();
       if (e.dataTransfer) e.dataTransfer.dropEffect = 'copy';
     });
+    function dispatchDrop(paths, event) {
+      if (!paths || !paths.length) return;
+      if (dropHandlers.size === 0) {
+        if (paths.length === 1) window.noteon.openFile(paths[0]);
+        return;
+      }
+      for (const fn of dropHandlers) {
+        try { fn(paths, event); } catch (err) { console.error(err); }
+      }
+    }
+
     host.addEventListener('drop', (e) => {
       e.preventDefault();
       e.stopPropagation();
       if (!e.dataTransfer) return;
       const files = Array.from(e.dataTransfer.files || []);
       const paths = files.map((f) => window.noteon.getPathForFile(f)).filter(Boolean);
-      if (!paths.length) return;
-      if (dropHandlers.size === 0) {
-        if (paths.length === 1) window.noteon.openFile(paths[0]);
-        return;
-      }
-      for (const fn of dropHandlers) {
-        try { fn(paths, e); } catch (err) { console.error(err); }
-      }
+      dispatchDrop(paths, e);
     });
+
+    // C# 宿主在 AllowExternalDrop=false 后从 WPF 拿到真实文件路径。
+    window.noteon.on('files:dropped', (paths) => dispatchDrop(paths, null));
 
     document.addEventListener('keydown', (e) => {
       const mod = e.ctrlKey || e.metaKey;

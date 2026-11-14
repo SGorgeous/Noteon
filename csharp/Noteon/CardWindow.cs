@@ -304,6 +304,8 @@ public class CardWindow : Window
         Width = Math.Max(240, card.w);
         Height = Math.Max(160, card.h);
         Topmost = card.alwaysOnTop;
+        AllowDrop = true;
+        HookDrop(this);
 
         rootGrid = new Grid();
         var loading = new Border();
@@ -411,6 +413,8 @@ public class CardWindow : Window
             // 先把窗口显示出来，再创建 WebView2，避免新建卡片时窗口迟迟不出现。
             web = new WebView2CompositionControl();
             web.DefaultBackgroundColor = System.Drawing.Color.Transparent;
+            try { web.AllowExternalDrop = false; } catch { }
+            HookDrop(web);
             rootGrid.Children.Insert(0, web);
             if (Card.plugin == "web")
             {
@@ -1343,6 +1347,36 @@ public class CardWindow : Window
             e.Handled = true;
         }
         catch { }
+    }
+
+    private void HookDrop(UIElement el)
+    {
+        el.AllowDrop = true;
+        el.DragOver += (s, e) =>
+        {
+            try
+            {
+                if (e.Data != null && e.Data.GetDataPresent(DataFormats.FileDrop))
+                {
+                    e.Effects = DragDropEffects.Copy;
+                    e.Handled = true;
+                }
+            }
+            catch { }
+        };
+        el.Drop += (s, e) =>
+        {
+            try
+            {
+                var files = e.Data != null ? e.Data.GetData(DataFormats.FileDrop) as string[] : null;
+                if (files != null && files.Length > 0)
+                {
+                    PostEvent("files:dropped", files);
+                    e.Handled = true;
+                }
+            }
+            catch { }
+        };
     }
 
     private void PostEvent(string name, object payload)
