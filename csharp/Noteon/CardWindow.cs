@@ -249,6 +249,7 @@ public class CardWindow : Window
     [DllImport("user32.dll")] private static extern bool GetCursorPos(out POINT pt);
     [DllImport("user32.dll")] private static extern IntPtr WindowFromPoint(POINT pt);
     [DllImport("user32.dll")] private static extern bool GetWindowRect(IntPtr hWnd, out RECT rect);
+    [DllImport("user32.dll", CharSet = CharSet.Auto)] private static extern int GetClassName(IntPtr hWnd, System.Text.StringBuilder name, int max);
 
     private readonly AppHost app;
     public Card Card { get; private set; }
@@ -383,7 +384,8 @@ public class CardWindow : Window
                 return IntPtr.Zero;
             });
         };
-        Deactivated += (s, e) => { if (isFullscreen) ExitFullscreen(); };
+        Deactivated += (s, e) => { if (isFullscreen) ExitFullscreen(); if (Card.desktop) SendToBottom(); };
+        Activated += (s, e) => { if (Card.desktop) RaiseForHover(); };
     }
 
     public void StopWebMedia()
@@ -1505,6 +1507,8 @@ public class CardWindow : Window
                 if (hoverRaised) { SendToBottom(); hoverRaised = false; }
                 return;
             }
+            // 已经因为悬停抬起：鼠标还在卡片上时保持抬起，否则 WebView2 子窗口会被误判成“别的应用”。
+            if (hoverRaised) return;
             var hit = WindowFromPoint(p);
             var root = hit == IntPtr.Zero ? IntPtr.Zero : GetAncestor(hit, 2);
             if (root == hwnd)
@@ -1514,7 +1518,14 @@ public class CardWindow : Window
             }
             var progman = FindWindow("Progman", null);
             var worker = FindWindow("WorkerW", null);
-            if (root == progman || root == worker)
+            bool isDesktop = root == progman || root == worker;
+            if (!isDesktop)
+            {
+                var cls = new System.Text.StringBuilder(64);
+                GetClassName(root, cls, cls.Capacity);
+                isDesktop = cls.ToString() == "Progman" || cls.ToString() == "WorkerW";
+            }
+            if (isDesktop)
             {
                 if (!hoverRaised) RaiseForHover();
             }
