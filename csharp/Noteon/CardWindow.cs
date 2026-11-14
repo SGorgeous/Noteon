@@ -445,7 +445,7 @@ public class CardWindow : Window
     private Dictionary<string, object> CardGetResult()
     {
         var theme = new Dictionary<string, object>();
-        theme["themeId"] = app.Store.Settings.ContainsKey("themeId") ? app.Store.Settings["themeId"] : "ink";
+        theme["themeId"] = app.Store.Settings.ContainsKey("themeId") ? app.Store.Settings["themeId"] : "mist";
         theme["customTheme"] = new Dictionary<string, object>();
         var r = new Dictionary<string, object>();
         r["card"] = CardDict();
@@ -1417,7 +1417,7 @@ public class CardWindow : Window
     public void PostTheme()
     {
         var payload = new Dictionary<string, object>();
-        payload["themeId"] = app.Store.Settings.ContainsKey("themeId") ? app.Store.Settings["themeId"] : "ink";
+        payload["themeId"] = app.Store.Settings.ContainsKey("themeId") ? app.Store.Settings["themeId"] : "mist";
         payload["customTheme"] = app.Store.Settings.ContainsKey("customTheme") ? app.Store.Settings["customTheme"] : new Dictionary<string, object>();
         payload["settings"] = app.Store.Settings;
         PostEvent("theme:changed", payload);

@@ -73,7 +73,7 @@ public class Store
     private static Board NewBoard()
     {
         var b = new Board();
-        b.settings["themeId"] = "ink";
+        b.settings["themeId"] = "mist";
         b.settings["defaultAlwaysOnTop"] = true;
         b.settings["restoreOnStart"] = true;
         b.settings["snap"] = true;
