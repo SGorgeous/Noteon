@@ -21,6 +21,8 @@ public class PanelWindow : Window
     [DllImport("user32.dll")] private static extern int SetWindowLong(IntPtr hWnd, int index, int value);
     [DllImport("user32.dll")] private static extern bool SetForegroundWindow(IntPtr hWnd);
     private DateTime shownAt = DateTime.MinValue;
+    private Rect panelRestore;
+    private bool panelMaximized;
 
     private readonly AppHost app;
     private WebView2CompositionControl web;
@@ -244,12 +246,38 @@ public class PanelWindow : Window
         if (method == "openPluginDir") { Process.Start("explorer.exe", "\"" + Path.Combine(app.WebRoot, "plugins") + "\""); return true; }
         if (method == "openDocs") { Process.Start("explorer.exe", "\"" + Path.Combine(app.WebRoot, "docs") + "\""); return true; }
         if (method == "minimize") { WindowState = WindowState.Minimized; return true; }
-        if (method == "maximize") { WindowState = WindowState == WindowState.Maximized ? WindowState.Normal : WindowState.Maximized; return true; }
+        if (method == "maximize") { ToggleMaximize(); return true; }
         if (method == "close") { Hide(); return true; }
         if (method == "dragStart") { DragStart(PointFrom(args)); return true; }
         if (method == "dragMove") { DragMove(PointFrom(args)); return true; }
         if (method == "dragEnd") { dragging = false; return true; }
         return null;
+    }
+
+    private void ToggleMaximize()
+    {
+        if (WindowState != WindowState.Normal) WindowState = WindowState.Normal;
+        if (!panelMaximized)
+        {
+            panelRestore = new Rect(Left, Top, Width, Height);
+            var hwnd = new WindowInteropHelper(this).Handle;
+            var screen = System.Windows.Forms.Screen.FromHandle(hwnd);
+            var dpi = VisualTreeHelper.GetDpi(this);
+            var a = screen.WorkingArea;
+            Left = a.Left / Math.Max(0.1, dpi.DpiScaleX);
+            Top = a.Top / Math.Max(0.1, dpi.DpiScaleY);
+            Width = a.Width / Math.Max(0.1, dpi.DpiScaleX);
+            Height = a.Height / Math.Max(0.1, dpi.DpiScaleY);
+            panelMaximized = true;
+        }
+        else
+        {
+            Left = panelRestore.X;
+            Top = panelRestore.Y;
+            Width = panelRestore.Width;
+            Height = panelRestore.Height;
+            panelMaximized = false;
+        }
     }
 
     private static Point PointFrom(object[] args)
