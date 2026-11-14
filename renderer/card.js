@@ -110,6 +110,7 @@ if (window.chrome && window.chrome.webview) document.body.classList.add('csharp-
       bindWindow();
       bindEvents();
       applyTheme();
+      window.noteon.on('stylus:ui', onStylusUi);
 
       if (manifest.styleUrl) {
         await new Promise((resolve) => {
@@ -219,6 +220,55 @@ if (window.chrome && window.chrome.webview) document.body.classList.add('csharp-
     btnPin.title = card.alwaysOnTop ? '已置顶（点击取消）' : '置顶窗口';
     for (const fn of themeHandlers) {
       try { fn(theme); } catch (err) { console.error(err); }
+    }
+  }
+
+  let stylusUiDown = null;
+  let lastUiTapAt = 0;
+  let lastUiTarget = null;
+
+  function setRangeValue(el, clientX) {
+    const r = el.getBoundingClientRect();
+    const p = Math.max(0, Math.min(1, (clientX - r.left) / Math.max(1, r.width)));
+    el.value = String(Math.round(Number(el.min || 0) + p * (Number(el.max || 100) - Number(el.min || 0))));
+    el.dispatchEvent(new Event('input', { bubbles: true }));
+    el.dispatchEvent(new Event('change', { bubbles: true }));
+  }
+
+  function onStylusUi(s) {
+    if (!s || !card || card.plugin === 'paint') return;
+    const x = Number(s.x) || 0;
+    const y = Number(s.y) || 0;
+    const hit = document.elementFromPoint(x, y);
+    const target = hit && (hit.closest('button,a,select,input,label,.cm-item,.play-row,.pal,.pbtn') || hit);
+    if (s.phase === 'down') {
+      stylusUiDown = target;
+      if (target && target.tagName === 'INPUT' && target.type === 'range') setRangeValue(target, x);
+      return;
+    }
+    if (s.phase === 'move') {
+      if (stylusUiDown && stylusUiDown.tagName === 'INPUT' && stylusUiDown.type === 'range') setRangeValue(stylusUiDown, x);
+      return;
+    }
+    if (s.phase !== 'up') return;
+    const down = stylusUiDown;
+    stylusUiDown = null;
+    if (!target || !down || target !== down) return;
+    if (target.tagName === 'INPUT' && target.type === 'range') { setRangeValue(target, x); return; }
+    if (target.tagName === 'SELECT') {
+      target.focus();
+      try { if (target.showPicker) target.showPicker(); } catch { }
+      return;
+    }
+    const now = performance.now();
+    if (now - lastUiTapAt < 350 && lastUiTarget === target) {
+      lastUiTapAt = 0;
+      lastUiTarget = null;
+      target.dispatchEvent(new MouseEvent('dblclick', { bubbles: true, cancelable: true, clientX: x, clientY: y }));
+    } else {
+      lastUiTapAt = now;
+      lastUiTarget = target;
+      target.click();
     }
   }
 

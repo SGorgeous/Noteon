@@ -374,23 +374,10 @@
         if (current) requestAnimationFrame(() => fitView());
       }
 
-      // 用 pointerup 自己做双击判定：数位板/鼠标双击都更可靠。
-      let lastTapAt = 0;
-      let lastTapX = 0;
-      let lastTapY = 0;
-      stage.addEventListener('pointerup', (e) => {
-        if (e.button !== 0) return;
+      stage.addEventListener('dblclick', (e) => {
         if (e.target.closest('.bar, .thumbs, .split-line, .empty')) return;
-        if (!current || moved) { lastTapAt = 0; return; }
-        const now = performance.now();
-        if (now - lastTapAt < 360 && Math.abs(e.clientX - lastTapX) < 8 && Math.abs(e.clientY - lastTapY) < 8) {
-          lastTapAt = 0;
-          setImmersive(!immersive);
-        } else {
-          lastTapAt = now;
-          lastTapX = e.clientX;
-          lastTapY = e.clientY;
-        }
+        if (!current) return;
+        setImmersive(!immersive);
       });
 
       stage.addEventListener('contextmenu', (e) => {

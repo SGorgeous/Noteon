@@ -216,8 +216,6 @@ public class CardWindow : Window
     [DllImport("user32.dll")] private static extern bool ReleaseCapture();
     [DllImport("user32.dll")] private static extern IntPtr SendMessage(IntPtr hWnd, uint msg, IntPtr wParam, IntPtr lParam);
     [DllImport("user32.dll")] private static extern short GetAsyncKeyState(int vKey);
-    [DllImport("user32.dll")] private static extern bool SetCursorPos(int x, int y);
-    [DllImport("user32.dll")] private static extern void mouse_event(uint flags, uint dx, uint dy, uint data, UIntPtr extra);
 
     private readonly AppHost app;
     public Card Card { get; private set; }
@@ -1247,19 +1245,6 @@ public class CardWindow : Window
         return d;
     }
 
-    private void SendUiMouse(string phase, Point pos)
-    {
-        try
-        {
-            var screen = PointToScreen(pos);
-            SetCursorPos((int)Math.Round(screen.X), (int)Math.Round(screen.Y));
-            if (phase == "down") mouse_event(0x0002, 0, 0, 0, UIntPtr.Zero);
-            else if (phase == "up") mouse_event(0x0004, 0, 0, 0, UIntPtr.Zero);
-            else mouse_event(0x0001, 0, 0, 0, UIntPtr.Zero);
-        }
-        catch { }
-    }
-
     private void PostStylus(string phase, StylusEventArgs e)
     {
         if (web == null) return;
@@ -1268,7 +1253,9 @@ public class CardWindow : Window
             var pos = e.GetPosition(web);
             if (Card.plugin != "paint")
             {
-                SendUiMouse(phase, pos);
+                var ui = new Dictionary<string, object>();
+                ui["phase"] = phase; ui["x"] = pos.X; ui["y"] = pos.Y;
+                PostEvent("stylus:ui", ui);
                 e.Handled = true;
                 return;
             }
@@ -1276,7 +1263,9 @@ public class CardWindow : Window
             if (inCanvas) foreach (var r in stylusExclude) if (r.Contains(pos)) { inCanvas = false; break; }
             if (!inCanvas)
             {
-                SendUiMouse(phase, pos);
+                var ui = new Dictionary<string, object>();
+                ui["phase"] = phase; ui["x"] = pos.X; ui["y"] = pos.Y;
+                PostEvent("stylus:ui", ui);
                 e.Handled = true;
                 return;
             }
