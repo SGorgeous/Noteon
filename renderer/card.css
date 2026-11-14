@@ -99,6 +99,8 @@ body.ready .frame {
 }
 
 .tools { display: flex; gap: 1px; flex: none; padding-right: 1px; }
+.close-left { margin-left: -4px; margin-right: 1px; }
+.hide-right { margin-left: 1px; }
 
 .tb {
   width: 24px;

@@ -3,22 +3,22 @@
 <head>
   <meta charset="utf-8">
   <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline' noteon-plugin:; style-src 'self' 'unsafe-inline' noteon-plugin:; img-src 'self' data: blob: noteon-file: noteon-plugin:; media-src 'self' data: blob: noteon-file:; font-src 'self' data:; connect-src 'self' noteon-file:;">
-  <link rel="stylesheet" href="shared/base.css?v=20261114l">
-  <link rel="stylesheet" href="card.css?v=20261114l">
+  <link rel="stylesheet" href="shared/base.css?v=20261114m">
+  <link rel="stylesheet" href="card.css?v=20261114m">
   <title>Noteon</title>
 </head>
 <body class="card">
   <div class="frame" id="frame">
     <header class="bar" id="bar">
+      <button class="tb danger close-left" id="btnClose" title="关闭卡片"></button>
       <span class="picon" id="picon"></span>
       <span class="title" id="title" spellcheck="false"></span>
       <div class="tools">
-        <button class="tb" id="btnHide" title="隐藏卡片"></button>
         <button class="tb" id="btnPin" title="置顶"></button>
         <button class="tb" id="btnFull" title="全屏"></button>
         <button class="tb" id="btnMini" title="小窗"></button>
         <button class="tb" id="btnMore" title="卡片设置"></button>
-        <button class="tb danger" id="btnClose" title="关闭卡片"></button>
+        <button class="tb hide-right" id="btnHide" title="隐藏卡片"></button>
       </div>
     </header>
     <main class="host" id="host"></main>
@@ -36,8 +36,8 @@
   <div class="card-menu hidden" id="cardMenu"></div>
   <div class="toast" id="toast"></div>
 
-  <script src="shared/icons.js?v=20261114l"></script>
-  <script src="shared/themes.js?v=20261114l"></script>
-  <script src="card.js?v=20261114l"></script>
+  <script src="shared/icons.js?v=20261114m"></script>
+  <script src="shared/themes.js?v=20261114m"></script>
+  <script src="card.js?v=20261114m"></script>
 </body>
 </html>
