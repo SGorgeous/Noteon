@@ -262,6 +262,7 @@ public class CardWindow : Window
         chrome.CornerRadius = new CornerRadius(0);
         chrome.UseAeroCaptionButtons = false;
         WindowChrome.SetWindowChrome(this, chrome);
+        try { Icon = BitmapFrame.Create(new Uri(Path.Combine(app.WebRoot, "assets", "icon.ico"))); } catch { }
         Left = card.x;
         Top = card.y;
         Width = Math.Max(240, card.w);

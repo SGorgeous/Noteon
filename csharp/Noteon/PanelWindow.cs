@@ -6,6 +6,7 @@ using System.IO;
 using System.Web.Script.Serialization;
 using System.Windows;
 using System.Windows.Media;
+using System.Windows.Media.Imaging;
 using Microsoft.Web.WebView2.Core;
 using Microsoft.Web.WebView2.Wpf;
 
@@ -26,6 +27,7 @@ public class PanelWindow : Window
         WindowStyle = WindowStyle.None;
         AllowsTransparency = true;
         Background = System.Windows.Media.Brushes.Transparent;
+        try { Icon = BitmapFrame.Create(new Uri(Path.Combine(app.WebRoot, "assets", "icon.ico"))); } catch { }
         Width = 1100;
         Height = 760;
         WindowStartupLocation = WindowStartupLocation.CenterScreen;

@@ -16,6 +16,7 @@ if (-not (Test-Path (Join-Path $lib 'Microsoft.Web.WebView2.Wpf.dll'))) { throw 
 
 $cscArgs = @(
   '-nologo', '-target:winexe', '-platform:x64', "-out:$out",
+  "-win32icon:$root/assets/icon.ico",
   "-r:$wf\PresentationFramework.dll",
   "-r:$wf\PresentationCore.dll",
   "-r:$wf\WindowsBase.dll",
